@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useLanguage } from './LanguageContext';
-import { ArrowUpRight, FileText, Globe, Menu, Users, X } from 'lucide-react';
+import { ArrowUpRight, Globe, Landmark, Map, Menu, X } from 'lucide-react';
 
 export function GovernmentHeader() {
   const { lang, toggleLang } = useLanguage();
@@ -24,43 +24,43 @@ export function GovernmentHeader() {
   const isActive = (href: string) => (href === '/' ? pathname === '/' : pathname.startsWith(href));
 
   return (
-    <header className="relative z-40 w-full border-b border-slate-200 bg-white text-slate-800">
+    <header className="sticky top-0 z-40 w-full border-b border-slate-200 bg-white text-slate-800">
       {/* Top Green Bar */}
       <div className="bg-[#006a4e] px-3 py-1.5 text-white sm:px-5 lg:px-6">
-        <div className="mx-auto flex max-w-[1600px] items-center justify-end">
-          <div className="flex w-full items-center justify-end gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5">
-            <span className="shrink-0 whitespace-nowrap text-[11px] font-medium text-emerald-100 sm:text-xs">
+        <div className="mx-auto flex max-w-[1600px] items-center justify-center sm:justify-end">
+          <div className="flex w-full items-center justify-center gap-1 sm:justify-end sm:gap-2.5">
+            <span className="hidden shrink-0 whitespace-nowrap text-[11px] font-medium text-emerald-100 sm:inline sm:text-xs">
               {lang === 'bn' ? 'সরকারি সেবা (আসল সাইট):' : 'Official services (real sites):'}
             </span>
             <a
               href="https://land.gov.bd"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-7 sm:h-8 shrink-0 items-center gap-1.5 rounded-md border border-emerald-400/60 px-2.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700 sm:text-xs"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-emerald-400/60 px-1.5 text-[10px] font-semibold text-white transition hover:bg-emerald-700 sm:h-8 sm:gap-1.5 sm:px-2.5 sm:text-xs"
             >
-              <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+              <Globe className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
               <span>land.gov.bd</span>
-              <ArrowUpRight className="h-3 w-3 text-emerald-200" aria-hidden="true" />
+              <ArrowUpRight className="hidden h-3 w-3 text-emerald-200 sm:block" aria-hidden="true" />
             </a>
             <a
-              href="https://eporcha.gov.bd"
+              href="https://settlement.gov.bd/"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-7 sm:h-8 shrink-0 items-center gap-1.5 rounded-md border border-emerald-400/60 px-2.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700 sm:text-xs"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-emerald-400/60 px-1.5 text-[10px] font-semibold text-white transition hover:bg-emerald-700 sm:h-8 sm:gap-1.5 sm:px-2.5 sm:text-xs"
             >
-              <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>e-Porcha</span>
-              <ArrowUpRight className="h-3 w-3 text-emerald-200" aria-hidden="true" />
+              <Landmark className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
+              <span>settlement.gov.bd</span>
+              <ArrowUpRight className="hidden h-3 w-3 text-emerald-200 sm:block" aria-hidden="true" />
             </a>
             <a
-              href="https://mutation.land.gov.bd"
+              href="https://dlrs.gov.bd/"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex h-7 sm:h-8 shrink-0 items-center gap-1.5 rounded-md border border-emerald-400/60 px-2.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700 sm:text-xs"
+              className="inline-flex h-7 shrink-0 items-center gap-1 rounded-md border border-emerald-400/60 px-1.5 text-[10px] font-semibold text-white transition hover:bg-emerald-700 sm:h-8 sm:gap-1.5 sm:px-2.5 sm:text-xs"
             >
-              <Users className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{lang === 'bn' ? 'ই-নামজারি' : 'e-Mutation'}</span>
-              <ArrowUpRight className="h-3 w-3 text-emerald-200" aria-hidden="true" />
+              <Map className="h-3 w-3 sm:h-3.5 sm:w-3.5" aria-hidden="true" />
+              <span>dlrs.gov.bd</span>
+              <ArrowUpRight className="hidden h-3 w-3 text-emerald-200 sm:block" aria-hidden="true" />
             </a>
           </div>
         </div>
