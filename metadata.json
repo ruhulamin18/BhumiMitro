@@ -1,0 +1,6 @@
+{
+  "name": "BhumiMitro - Bangladesh Land Record Verification & Fraud-Risk Assistant",
+  "description": "Preliminary land-record consistency verification and fraud-risk detection advisory platform for land buyers in Bangladesh.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
