@@ -1,11 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, Suspense } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useLanguage } from '@/components/LanguageContext';
 import { verifyQrSignature } from '@/lib/api';
 import { QrVerificationResponse } from '@/types/land';
 import { AdvisoryDisclaimer } from '@/components/AdvisoryDisclaimer';
+import QRCode from 'qrcode';
 import {
   QrCode,
   ShieldCheck,
@@ -24,20 +27,62 @@ import {
   FileEdit,
   Bug,
   RefreshCw,
+  ArrowLeft,
 } from 'lucide-react';
 
 function QrVerificationContent() {
   const { t, lang } = useLanguage();
   const searchParams = useSearchParams();
   const codeFromUrl = searchParams.get('code') || '';
+  const requestedReturnTo = searchParams.get('returnTo') || '';
+  const returnTo = requestedReturnTo.startsWith('/result/') && !requestedReturnTo.startsWith('//')
+    ? requestedReturnTo
+    : '/verify';
 
   // Tab State: 'standard' | 'attack_mode'
   const [activeTab, setActiveTab] = useState<'standard' | 'attack_mode'>('standard');
 
-  const [inputCode, setInputCode] = useState(codeFromUrl);
+  const [inputCode, setInputCode] = useState(codeFromUrl || 'BM-DEMO-000001');
+  const [qrImage, setQrImage] = useState('');
+  const [qrError, setQrError] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QrVerificationResponse | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+
+  useEffect(() => {
+    const code = inputCode.trim();
+    if (!code) return;
+
+    let active = true;
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim() || 'https://bhumi-mitro.vercel.app';
+    Promise.resolve()
+      .then(() => {
+        const verificationUrl = new URL('/qr-verify', appUrl);
+        verificationUrl.searchParams.set('code', code);
+        return QRCode.toDataURL(verificationUrl.toString(), {
+          errorCorrectionLevel: 'M',
+          margin: 2,
+          width: 240,
+          color: { dark: '#0f172a', light: '#ffffff' },
+        });
+      })
+      .then((image) => {
+        if (active) {
+          setQrImage(image);
+          setQrError('');
+        }
+      })
+      .catch((error: unknown) => {
+        if (active) {
+          setQrImage('');
+          setQrError(error instanceof Error ? error.message : 'Unable to generate the QR code.');
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [inputCode]);
 
   // Attack Mode Simulator State
   const [attackDeedNo, setAttackDeedNo] = useState('4821/2017');
@@ -112,6 +157,7 @@ function QrVerificationContent() {
       const mismatch = originalHash !== computedHash;
       const modified = modifiedFields.join(', ') || 'কোনো পরিবর্তন নেই';
       setResult({
+        recordFound: false,
         isValidSignature: false,
         signerAuthorityEn: 'Local unsigned SHA-256 demo comparison',
         signerAuthorityBn: 'স্থানীয় স্বাক্ষরবিহীন SHA-256 ডেমো তুলনা',
@@ -174,11 +220,19 @@ function QrVerificationContent() {
 
   return (
     <div className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full space-y-8">
+      <Link
+        href={returnTo}
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-900"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {lang === 'bn' ? 'আগের পেজে ফিরুন' : 'Back'}
+      </Link>
+
       {/* Page Header (Gov Civic Style) */}
       <div className="bg-white border-t-4 border-[#006A4E] border-x border-b border-slate-300 rounded-xl p-6 sm:p-8 shadow-xs space-y-3">
         <div className="flex items-center gap-2 text-xs font-bold text-[#006A4E] uppercase tracking-wider">
           <QrCode className="w-4 h-4 text-emerald-700" />
-          <span>M2 ডেমো · কোনো স্বাক্ষরকারী কী কনফিগার করা নেই</span>
+          <span>{lang === 'bn' ? 'সিন্থেটিক রেকর্ড QR যাচাই' : 'Synthetic record QR lookup'}</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight font-serif">
           {lang === 'bn'
@@ -263,7 +317,7 @@ function QrVerificationContent() {
                 ) : (
                   <>
                     <Search className="w-4 h-4" />
-                    <span>ডিজিটাল স্বাক্ষর পরীক্ষা</span>
+                    <span>QR কোড ও রেকর্ড যাচাই</span>
                   </>
                 )}
               </button>
@@ -274,6 +328,40 @@ function QrVerificationContent() {
               {errorMessage}
             </p>
           )}
+
+          <div className="flex flex-col sm:flex-row items-center gap-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="flex size-60 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white p-2">
+              {inputCode.trim() && qrImage ? (
+                <Image
+                  src={qrImage}
+                  alt={lang === 'bn' ? 'ডেমো রেকর্ডের QR কোড' : 'QR code for the demo record'}
+                  width={240}
+                  height={240}
+                  className="size-full"
+                  unoptimized
+                />
+              ) : inputCode.trim() && qrError ? (
+                <p role="alert" className="text-center text-xs text-red-700">{qrError}</p>
+              ) : !inputCode.trim() ? (
+                <p className="px-4 text-center text-xs text-slate-500">
+                  {lang === 'bn' ? 'QR তৈরি করতে একটি কোড লিখুন' : 'Enter a code to generate its QR'}
+                </p>
+              ) : (
+                <Loader2 className="size-6 animate-spin text-emerald-700" aria-label="Generating QR code" />
+              )}
+            </div>
+            <div className="space-y-2 text-center sm:text-left">
+              <h2 className="text-sm font-bold text-slate-900">
+                {lang === 'bn' ? 'এই রেকর্ডের QR কোড' : 'QR code for this record'}
+              </h2>
+              <p className="text-xs leading-relaxed text-slate-600">
+                {lang === 'bn'
+                  ? 'কোডটি স্ক্যান করলে এই যাচাই পাতাটি রেকর্ড কোডসহ খুলবে। ইনপুটে কোড বদলালে QR-টিও আপডেট হবে।'
+                  : 'Scanning this code opens this verification page with the record code. The QR updates when you change the input.'}
+              </p>
+              <p className="break-all font-mono text-[11px] text-slate-500">{inputCode}</p>
+            </div>
+          </div>
 
           {/* Quick Sample Testers */}
           <div className="pt-3 border-t border-slate-100 space-y-2">
@@ -417,12 +505,16 @@ function QrVerificationContent() {
             className={`p-4 rounded-xl border flex items-start gap-3.5 ${
               result.isValidSignature
                 ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                : result.recordFound
+                ? 'bg-amber-50 border-amber-300 text-amber-950'
                 : 'bg-red-50 border-red-300 text-red-950'
             }`}
           >
             <div className="shrink-0 mt-0.5">
               {result.isValidSignature ? (
                 <CheckCircle2 className="w-6 h-6 text-[#006A4E]" />
+              ) : result.recordFound ? (
+                <Info className="w-6 h-6 text-amber-700" />
               ) : (
                 <AlertOctagon className="w-6 h-6 text-red-700 animate-pulse" />
               )}
@@ -431,16 +523,24 @@ function QrVerificationContent() {
             <div className="space-y-1">
               <h3 className="font-bold text-sm sm:text-base">
                 {result.isValidSignature
-                  ? 'ডিজিটাল স্বাক্ষর যাচাই হয়েছে'
+                  ? lang === 'bn' ? 'ডিজিটাল স্বাক্ষর যাচাই হয়েছে' : 'Digital signature verified'
                   : result.tamperDetected
-                  ? 'ডেমো বেসলাইন থেকে পে-লোড ভিন্ন'
-                  : 'ডিজিটাল স্বাক্ষর যাচাই করা যায়নি'}
+                  ? lang === 'bn' ? 'ডেমো বেসলাইন থেকে পে-লোড ভিন্ন' : 'Payload differs from demo baseline'
+                  : result.recordFound
+                  ? lang === 'bn' ? 'রেকর্ড পাওয়া গেছে; ডিজিটাল স্বাক্ষর নেই' : 'Record found; no digital signature'
+                  : lang === 'bn' ? 'রেকর্ড পাওয়া যায়নি' : 'Record not found'}
               </h3>
               <p className="text-xs sm:text-sm leading-relaxed">
                 {lang === 'bn' ? result.integrityNoticeBn : result.integrityNoticeEn}
               </p>
             </div>
           </div>
+
+          {result.recordFound && (
+            <p className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs text-slate-700">
+              {result.parcelSummary}
+            </p>
+          )}
 
           {/* Local SHA-256 baseline comparison */}
           {result.tamperDetected && (
@@ -495,7 +595,7 @@ function QrVerificationContent() {
                 আইনি স্পষ্টীকরণ:
               </span>
               <span>
-                {' '}কিউআর ও ডিজিটাল স্বাক্ষর নথির অপরিবর্তনীয়তা (Integrity) নিশ্চিত করে, অর্থাৎ দলিলটি সিস্টেমে তৈরির পর কেউ এতে হাত দেয়নি। কিন্তু জমির মূল মালিকানা সরকারি বালাম ও এসি ল্যান্ডের রেকর্ড অনুযায়ী নির্ধারিত হয়।
+                {' '}এই ডেমো QR শুধু সিন্থেটিক রেকর্ড খুঁজে দেয়; এখানে ডিজিটাল স্বাক্ষর যাচাই করা হয় না। এটি নথির অখণ্ডতা বা আইনি মালিকানার প্রমাণ নয়।
               </span>
             </div>
           </div>

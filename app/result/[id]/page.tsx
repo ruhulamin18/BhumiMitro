@@ -29,6 +29,7 @@ import {
   AlertOctagon,
   Wrench,
   Layers,
+  ArrowLeft,
 } from 'lucide-react';
 
 export default function VerificationResultPage({
@@ -101,6 +102,14 @@ export default function VerificationResultPage({
 
   return (
     <div className="flex-1 py-10 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto w-full space-y-8">
+      <Link
+        href="/verify"
+        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-900"
+      >
+        <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+        {lang === 'bn' ? 'আগের পেজে ফিরুন' : 'Back to verification'}
+      </Link>
+
       {/* Demo assessment breadcrumbs */}
       <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-slate-600 font-medium">
         <Link href="/" className="hover:text-[#006A4E] transition-colors">
@@ -249,11 +258,11 @@ export default function VerificationResultPage({
           </Link>
 
           <Link
-            href={`/qr-verify?code=${record.trackingCode}`}
+            href={`/qr-verify?code=${encodeURIComponent(record.trackingCode)}&returnTo=${encodeURIComponent(`/result/${record.id}`)}`}
             className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 transition-colors"
           >
             <QrCode className="w-3.5 h-3.5 text-slate-600" />
-            <span>{lang === 'bn' ? 'স্বাক্ষর-অবস্থা (কনফিগার করা নেই)' : 'Signature status (not configured)'}</span>
+            <span>{lang === 'bn' ? 'QR কোড দেখুন' : 'View QR code'}</span>
           </Link>
 
           <Link

@@ -58,11 +58,16 @@ async function testRoutes() {
     const qrRes = await fetch('http://localhost:3000/api/qr-verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code: 'BM-DEMO-001' }),
+      body: JSON.stringify({ code: 'BM-DEMO-000001' }),
     });
     if (qrRes.ok) {
       const json = await qrRes.json();
-      console.log(`✅ [${qrRes.status} OK] POST /api/qr-verify (Valid: ${json.isValidSignature})`);
+      if (json.recordFound && json.isValidSignature === false) {
+        console.log(`✅ [${qrRes.status} OK] POST /api/qr-verify (Record found; unsigned demo)`);
+      } else {
+        console.error('❌ QR verification returned an unexpected record/signature status');
+        failures++;
+      }
     } else {
       console.error(`❌ [${qrRes.status}] POST /api/qr-verify`);
       failures++;
@@ -72,7 +77,25 @@ async function testRoutes() {
     failures++;
   }
 
-  console.log(`\nFinished route testing: ${routes.length + 2 - failures} passed, ${failures} failed.`);
+  try {
+    const qrRes = await fetch('http://localhost:3000/api/qr-verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: 'BM-UNKNOWN-9999' }),
+    });
+    const json = await qrRes.json();
+    if (qrRes.ok && !json.recordFound && json.isValidSignature === false) {
+      console.log(`✅ [${qrRes.status} OK] POST /api/qr-verify rejects unknown code`);
+    } else {
+      console.error(`❌ [${qrRes.status}] POST /api/qr-verify accepted an unknown code`);
+      failures++;
+    }
+  } catch (err) {
+    console.error(`❌ Unknown QR code test failed: ${err.message}`);
+    failures++;
+  }
+
+  console.log(`\nFinished route testing: ${routes.length + 3 - failures} passed, ${failures} failed.`);
   if (failures > 0) process.exit(1);
 }
 

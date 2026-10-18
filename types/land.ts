@@ -222,6 +222,7 @@ export interface VerificationRequestParams {
 }
 
 export interface QrVerificationResponse {
+  recordFound: boolean;
   isValidSignature: boolean;
   signerAuthorityEn: string;
   signerAuthorityBn: string;
@@ -550,4 +551,3 @@ export interface VerificationReport {
   disclaimerBn: string;
   demo: true;
 }
-

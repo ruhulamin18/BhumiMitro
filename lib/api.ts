@@ -10,6 +10,27 @@ import { searchLands, getAllLands, normalizeLandId } from '@/lib/queries/land-qu
 
 const STORAGE_AUDIT_LOGS = 'bhumimitro_audit_logs';
 
+function isQrVerificationResponse(value: unknown): value is QrVerificationResponse {
+  if (!value || typeof value !== 'object') return false;
+  const result = value as Record<string, unknown>;
+  return (
+    typeof result.recordFound === 'boolean' &&
+    typeof result.isValidSignature === 'boolean' &&
+    typeof result.signerAuthorityEn === 'string' &&
+    typeof result.signerAuthorityBn === 'string' &&
+    typeof result.keyId === 'string' &&
+    typeof result.signedTimestamp === 'string' &&
+    typeof result.documentTrackingCode === 'string' &&
+    typeof result.parcelSummary === 'string' &&
+    typeof result.integrityNoticeEn === 'string' &&
+    typeof result.integrityNoticeBn === 'string' &&
+    typeof result.legalOwnershipDisclaimerEn === 'string' &&
+    typeof result.legalOwnershipDisclaimerBn === 'string' &&
+    typeof result.tamperDetected === 'boolean' &&
+    (result.record === undefined || (typeof result.record === 'object' && result.record !== null))
+  );
+}
+
 export interface DemoRecordSummary {
   record_id: string;
   district: string;
@@ -74,28 +95,24 @@ export async function getRecordById(id: string): Promise<VerificationRecord | nu
 }
 
 export async function verifyQrSignature(codeOrHash: string): Promise<QrVerificationResponse> {
-  const clean = codeOrHash.trim();
-  const match = clean.match(/BM-(?:DEMO-)?(\d+)/i);
-  const targetId = match ? `BM-DEMO-${match[1].padStart(3, '0')}` : 'BM-DEMO-001';
-  const record = buildVerificationRecord(targetId) || undefined;
-
-  return {
-    isValidSignature: true,
-    signerAuthorityEn: 'BhumiMitro Synthetic Demo Validator',
-    signerAuthorityBn: 'ভূমিমিত্র কৃত্রিম ডেমো যাচাইকরণ ভ্যালিডেটর',
-    keyId: 'PK-BHUMIMITRO-DEMO',
-    signedTimestamp: new Date().toISOString(),
-    documentTrackingCode: record ? record.trackingCode : clean,
-    parcelSummary: record
-      ? `${record.parcelDetails.mouza}, দাগ ${record.parcelDetails.dagNo}, খতিয়ান ${record.parcelDetails.khatianNo}`
-      : 'ডেমো পার্সেল বিবরণী',
-    integrityNoticeEn: 'Synthetic digital signature verified against demo public key.',
-    integrityNoticeBn: 'ডেমো পাবলিক কির বিপরীতে ডিজিটাল স্বাক্ষর যাচাই সম্পন্ন হয়েছে।',
-    legalOwnershipDisclaimerEn: 'This signature only confirms synthetic demo integrity; it does not confer legal ownership.',
-    legalOwnershipDisclaimerBn: 'এই স্বাক্ষর শুধুমাত্র ডেমো তথ্যের অক্ষুণ্ণতা যাচাই করে; এটি কোনো আইনগত স্বত্ব প্রদান করে না।',
-    tamperDetected: false,
-    record,
-  };
+  const response = await fetch('/api/qr-verify', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code: codeOrHash }),
+    cache: 'no-store',
+  });
+  const result: unknown = await response.json();
+  if (!response.ok) {
+    const errorMessage =
+      result && typeof result === 'object' && 'error' in result && typeof result.error === 'string'
+        ? result.error
+        : 'QR verification request failed.';
+    throw new Error(errorMessage);
+  }
+  if (!isQrVerificationResponse(result)) {
+    throw new Error('The QR verification service returned an invalid response.');
+  }
+  return result;
 }
 
 export async function checkBackendHealth(): Promise<BackendHealthStatus> {
