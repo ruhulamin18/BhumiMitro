@@ -1,17 +1,36 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useTransition } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLanguage } from '@/components/LanguageContext';
 import { getRecordById } from '@/lib/api';
 import { VerificationRecord } from '@/types/land';
-import { OwnershipTimeline } from '@/components/OwnershipTimeline';
+import { OwnershipScenario } from '@/types/ownership';
+import {
+  SCENARIO_A,
+  SCENARIO_B,
+  SCENARIO_C,
+  SCENARIO_D,
+  SCENARIO_E,
+  DEMO_SCENARIOS,
+  getScenarioByKeyOrCode,
+} from '@/data/ownership-scenarios';
+import {
+  OwnershipSummaryCards,
+  ScenarioSelector,
+  InteractiveOwnershipTimeline,
+  DocumentCrossCheckPanel,
+  IssueAnalysisPanel,
+  NextStepsChecklist,
+  OwnershipLegalDisclaimer,
+} from '@/components/ownership';
 import { StatusBadge } from '@/components/StatusBadge';
 import {
   AlertTriangle,
   ArrowUpRight,
   CalendarDays,
+  CheckCircle2,
   ChevronRight,
   CircleHelp,
   FileText,
@@ -19,343 +38,315 @@ import {
   MapPin,
   Search,
   ShieldCheck,
+  User,
+  Sparkles,
+  Printer,
+  Compass,
 } from 'lucide-react';
-import { normalizeLandId, getAllLands } from '@/lib/queries/land-queries';
+import { normalizeLandId } from '@/lib/queries/land-queries';
+import { toBanglaDigits, formatMultiUnitArea } from '@/lib/ownership-engine';
 
+const DEFAULT_SCENARIO = SCENARIO_A;
+const DEFAULT_RECORD_ID = 'BM-SCENARIO-A';
 
-const DEFAULT_RECORD_ID = 'BM-DEMO-001';
-
-
-export default function GeneralHistoryPage() {
+export default function OwnershipHistoryPage() {
   const { lang, t } = useLanguage();
+  const isBn = lang === 'bn';
+
   const [recordId, setRecordId] = useState(DEFAULT_RECORD_ID);
+  const [scenario, setScenario] = useState<OwnershipScenario>(DEFAULT_SCENARIO);
   const [record, setRecord] = useState<VerificationRecord | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [, startTransition] = useTransition();
 
-  useEffect(() => {
-    let isMounted = true;
-    getRecordById(DEFAULT_RECORD_ID)
-      .then((result) => {
-        if (isMounted) {
-          setRecord(result);
-          setLoading(false);
-          if (!result) setError(lang === 'bn' ? 'রেকর্ডটি পাওয়া যায়নি।' : 'Record not found.');
-        }
-      })
-      .catch((cause: unknown) => {
-        if (isMounted) {
-          setError(cause instanceof Error ? cause.message : 'Unable to load the record.');
-          setLoading(false);
-        }
-      });
-    return () => {
-      isMounted = false;
-    };
-  }, [lang]);
+  // Load record and map to scenario
+  const handleSelectScenario = (newScenario: OwnershipScenario) => {
+    setScenario(newScenario);
+    setRecordId(newScenario.code);
+    setError('');
+  };
 
-  const loadRecord = async (id: string) => {
+  const handleSearchRecord = async (searchId: string) => {
+    if (!searchId.trim()) return;
     setLoading(true);
     setError('');
+
     try {
-      const normalized = normalizeLandId(id);
-      const result = await getRecordById(normalized);
-      if (!result) {
-        setRecord(null);
-        setError(lang === 'bn' ? 'রেকর্ডটি পাওয়া যায়নি।' : 'Record not found.');
+      // First check if searchId maps directly to one of our 5 scenarios or demo aliases
+      const matchedScenario = getScenarioByKeyOrCode(searchId);
+      if (matchedScenario) {
+        setScenario(matchedScenario);
+        setRecordId(matchedScenario.code);
       } else {
-        setRecord(result);
-        setRecordId(normalized);
+        // Fallback: check synthetic API
+        const normalized = normalizeLandId(searchId);
+        const result = await getRecordById(normalized);
+        if (result) {
+          setRecord(result);
+          // Map to appropriate scenario or default to SCENARIO_A
+          const fallbackScenario = getScenarioByKeyOrCode(normalized) || SCENARIO_A;
+          setScenario(fallbackScenario);
+          setRecordId(normalized);
+        } else {
+          setError(
+            isBn
+              ? `"${searchId}" নম্বরের কোনো রেকর্ড পাওয়া যায়নি। নিচের ৫টি ডেমো দৃশ্যপট থেকে একটি নির্বাচন করুন।`
+              : `Record "${searchId}" was not found. Please choose from the 5 demo scenarios below.`
+          );
+        }
       }
     } catch (cause) {
-      setRecord(null);
-      setError(cause instanceof Error ? cause.message : 'Unable to load the record.');
+      setError(cause instanceof Error ? cause.message : 'Unable to load record');
     } finally {
       setLoading(false);
     }
   };
 
-
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    void loadRecord(recordId);
+    void handleSearchRecord(recordId);
   };
 
-  const bn = lang === 'bn';
-  const parcel = record?.parcelDetails;
-  const latestTransfer = record?.ownershipHistory[record.ownershipHistory.length - 1];
-  const demoSourceLabel = bn
-    ? 'উদাহরণভিত্তিক ডেমো ডেটা'
-    : 'Illustrative demo data';
+  const parcel = scenario.parcelSummary;
+  const claimant = scenario.claimant;
+  const areaSummary = formatMultiUnitArea(parcel.totalAreaDecimal, lang);
 
   return (
-    <main className="flex-1 bg-[#f4f7f6] text-slate-800">
-      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8">
-        <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-2 text-xs text-slate-500">
-          <Link href="/" className="transition-colors hover:text-[#087F5B]">{t.nav.home}</Link>
+    <main className="flex-1 bg-[#f4f7f6] text-slate-800 pb-16">
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-5 sm:px-6 lg:px-8 space-y-7">
+        {/* Breadcrumb Navigation */}
+        <nav aria-label="Breadcrumb" className="flex items-center gap-2 text-xs text-slate-500">
+          <Link href="/" className="transition-colors hover:text-[#087F5B]">
+            {t.nav.home}
+          </Link>
           <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
-          <span className="font-semibold text-slate-700">{t.history.title}</span>
+          <span className="font-semibold text-slate-700">
+            {isBn ? 'মালিকানা ইতিহাস ও স্বত্ব যাচাই' : 'Ownership Chain & Due Diligence'}
+          </span>
         </nav>
 
-        <section className="relative isolate min-h-[250px] overflow-hidden rounded-2xl bg-[#102a28] shadow-sm sm:min-h-[290px]">
+        {/* Hero Section */}
+        <section className="relative isolate min-h-[260px] overflow-hidden rounded-2xl bg-[#102a28] shadow-sm sm:min-h-[290px]">
           <Image
             src="/Land-History.png"
-            alt={bn ? 'বাংলাদেশের গ্রামীণ জমি ও ভূমির নথি' : 'Rural Bangladesh landscape and land records'}
+            alt={isBn ? 'বাংলাদেশের গ্রামীণ জমি ও ভূমির নথি' : 'Rural Bangladesh landscape and land records'}
             fill
             priority
             sizes="(max-width: 768px) 100vw, 1440px"
             className="object-cover object-center"
           />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#081f20]/90 via-[#102b29]/65 to-[#102b29]/15" />
-          <div className="relative flex min-h-[250px] flex-col justify-center px-6 py-8 text-white sm:min-h-[290px] sm:px-10 lg:px-14">
+          <div className="absolute inset-0 bg-gradient-to-r from-[#081f20]/95 via-[#102b29]/75 to-[#102b29]/25" />
+          <div className="relative flex min-h-[260px] flex-col justify-center px-6 py-8 text-white sm:min-h-[290px] sm:px-10 lg:px-14">
             <div className="mb-3 inline-flex w-fit items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-semibold backdrop-blur-sm">
-              <GitBranch className="h-4 w-4" aria-hidden="true" />
-              <span>{bn ? 'মালিকানা ইতিহাস' : 'Ownership history'}</span>
+              <GitBranch className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+              <span>{isBn ? 'মালিকানা ধারাবাহিকতা ড্যাশবোর্ড' : 'Ownership Due Diligence Dashboard'}</span>
             </div>
-            <h1 className="max-w-2xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl">
-              {bn ? 'জমির ইতিহাস ও রেকর্ডের ধারাবাহিকতা' : 'Land history & record timeline'}
+            <h1 className="max-w-3xl text-2xl font-bold leading-tight tracking-tight sm:text-4xl text-white">
+              {isBn
+                ? 'জমির মালিকানা ইতিহাস ও ধারাবাহিক স্বত্ব যাচাই'
+                : 'Land Ownership Chain & Title Due Diligence'}
             </h1>
-            <p className="mt-3 max-w-xl text-sm leading-6 text-white/85 sm:text-base">
-              {bn
-                ? 'নির্বাচিত নমুনা রেকর্ডের তথ্য এক জায়গায় দেখুন এবং রেকর্ডের ধারাবাহিকতা পর্যালোচনা করুন।'
-                : 'Review the available sample record and its recorded history in one place.'}
+            <p className="mt-3 max-w-2xl text-xs sm:text-sm leading-6 text-white/90">
+              {isBn
+                ? 'সিএস, এসএ, আরএস ও বিএস জরিপ খতিয়ান এবং সাব-রেজিস্ট্রির দলিল বালামের ধারাবাহিকতা পর্যালোচনা করুন। মনে রাখবেন, খতিয়ান বা দলিলে নাম থাকলেই চূড়ান্ত মালিকানা নিশ্চিত হয় না।'
+                : 'Examine chronological continuity across Cadastral Surveys (CS, SA, RS, BS) and Registered Deeds. A record entry alone does not establish conclusive ownership.'}
             </p>
             {parcel && (
-              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-white/90 sm:text-sm">
-                <span className="inline-flex items-center gap-1.5">
-                  <MapPin className="h-4 w-4" aria-hidden="true" />
-                  {parcel.mouza}, {parcel.upazila}, {parcel.district}
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs font-medium text-white/95 sm:text-sm">
+                <span className="inline-flex items-center gap-1.5 bg-black/20 px-2.5 py-1 rounded-md backdrop-blur-xs">
+                  <MapPin className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                  {parcel.mouzaBn} মৌজা, {parcel.upazilaBn}, {parcel.districtBn}
                 </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <FileText className="h-4 w-4" aria-hidden="true" />
-                  {bn ? 'দাগ' : 'Dag'} {parcel.dagNo} · {bn ? 'খতিয়ান' : 'Khatian'} {parcel.khatianNo}
+                <span className="inline-flex items-center gap-1.5 bg-black/20 px-2.5 py-1 rounded-md backdrop-blur-xs">
+                  <FileText className="h-4 w-4 text-emerald-300" aria-hidden="true" />
+                  {isBn ? 'দাগ নং' : 'Dag'} {parcel.dagNo} · {isBn ? 'খতিয়ান' : 'Khatian'} {parcel.khatianNo} ({parcel.surveyType})
+                </span>
+                <span className="inline-flex items-center gap-1.5 bg-black/20 px-2.5 py-1 rounded-md backdrop-blur-xs font-semibold text-emerald-200">
+                  {areaSummary.decimalStr}
                 </span>
               </div>
             )}
           </div>
         </section>
 
-        <form
-          onSubmit={handleSubmit}
-          className="relative z-10 mx-auto -mt-5 flex max-w-3xl flex-col gap-2 rounded-xl border border-slate-200 bg-white p-3 shadow-md sm:flex-row sm:p-3.5"
-        >
-          <label className="sr-only" htmlFor="history-record-id">Record ID</label>
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-            <input
-              id="history-record-id"
-              value={recordId}
-              onChange={(event) => setRecordId(event.target.value)}
-              placeholder="BM-DEMO-000001"
-              className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm font-mono text-slate-800 outline-none transition focus:border-[#087F5B] focus:bg-white focus:ring-2 focus:ring-[#087F5B]/10"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading || !recordId.trim()}
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#087F5B] px-5 text-sm font-semibold text-white transition hover:bg-[#066b4d] disabled:cursor-not-allowed disabled:opacity-60"
+        {/* Search & Scenario Quick-Switcher Form */}
+        <div className="relative z-10 -mt-7 mx-auto max-w-4xl space-y-2">
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col sm:flex-row gap-2 rounded-xl border border-slate-200 bg-white p-2.5 sm:p-3 shadow-md"
           >
-            <Search className="h-4 w-4" aria-hidden="true" />
-            {bn ? 'ইতিহাস দেখুন' : 'View history'}
-          </button>
-        </form>
-
-        <div className="mx-auto mt-2.5 flex max-w-3xl flex-wrap items-center gap-1.5 px-1 text-xs">
-          <span className="text-slate-500 font-semibold">{bn ? 'নমুনা জমি নির্বাচন:' : 'Quick demo lands:'}</span>
-          {['BM-DEMO-001', 'BM-DEMO-002', 'BM-DEMO-005', 'BM-DEMO-010', 'BM-DEMO-012', 'BM-DEMO-017', 'BM-DEMO-018', 'BM-DEMO-020'].map((id) => (
+            <div className="relative flex-1">
+              <Search
+                className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+                aria-hidden="true"
+              />
+              <input
+                id="history-record-id"
+                aria-label={isBn ? 'রেকর্ড বা দৃশ্যপট আইডি' : 'Record or Scenario ID'}
+                value={recordId}
+                onChange={(event) => setRecordId(event.target.value)}
+                placeholder="BM-SCENARIO-A, BM-DEMO-001, ইত্যাদিতে অনুসন্ধান..."
+                className="h-11 w-full rounded-lg border border-slate-200 bg-slate-50 pl-10 pr-3 text-xs sm:text-sm font-mono text-slate-800 outline-none transition focus:border-[#087F5B] focus:bg-white focus:ring-2 focus:ring-[#087F5B]/10"
+              />
+            </div>
             <button
-              key={id}
-              type="button"
-              onClick={() => {
-                setRecordId(id);
-                void loadRecord(id);
-              }}
-              className={`rounded-md border px-2 py-0.5 font-mono text-[11px] font-bold transition ${
-                recordId === id
-                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
-                  : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-slate-50'
-              }`}
+              type="submit"
+              disabled={loading || !recordId.trim()}
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-[#087F5B] px-6 text-xs sm:text-sm font-semibold text-white transition hover:bg-[#066b4d] disabled:cursor-not-allowed disabled:opacity-60 shadow-xs"
             >
-              {id}
+              <Search className="h-4 w-4" aria-hidden="true" />
+              <span>{isBn ? 'ইতিহাস দেখুন' : 'View History'}</span>
             </button>
-          ))}
+          </form>
+
+          {/* Quick Demo Scenario Selection Pills */}
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-slate-500 font-semibold">{isBn ? 'দ্রুত দৃশ্যপট:' : 'Quick Cases:'}</span>
+              {DEMO_SCENARIOS.map((s, idx) => {
+                const isSelected = scenario.id === s.id;
+                const letter = String.fromCharCode(65 + idx);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleSelectScenario(s)}
+                    className={`rounded-md border px-2.5 py-1 font-mono text-[11px] font-bold transition-all ${
+                      isSelected
+                        ? 'border-[#087F5B] bg-[#087F5B] text-white shadow-2xs'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-emerald-300 hover:bg-slate-50'
+                    }`}
+                  >
+                    {isBn ? `দৃশ্যপট ${letter}` : `Case ${letter}`}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-1 text-[11px] text-slate-400">
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
+              <span>{isBn ? 'কাল্পনিক ডেমো রেকর্ড' : 'Fictional demo data'}</span>
+            </div>
+          </div>
         </div>
 
-
+        {/* Error message if any */}
         {error && (
-          <p role="alert" className="mx-auto mt-4 max-w-3xl rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {error}
-          </p>
+          <div
+            role="alert"
+            className="mx-auto max-w-4xl rounded-xl border border-red-200 bg-red-50 p-4 text-xs sm:text-sm text-red-900 flex items-start gap-3 shadow-2xs"
+          >
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="leading-relaxed">{error}</p>
+          </div>
         )}
 
-        {loading ? (
-          <div className="mt-8 rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-600">
-            {bn ? 'রেকর্ড লোড হচ্ছে…' : 'Loading record…'}
+        {/* Loading state */}
+        {loading && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-12 text-center text-sm text-slate-600 space-y-3">
+            <div className="w-8 h-8 border-3 border-[#087F5B] border-t-transparent rounded-full animate-spin mx-auto" />
+            <p>{isBn ? 'মালিকানা ইতিহাস ও নথিপত্র বিশ্লেষণ হচ্ছে…' : 'Analyzing ownership chain & documents…'}</p>
           </div>
-        ) : record && parcel ? (
+        )}
+
+        {!loading && (
           <>
-            <div className="mt-7 grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <FileText className="h-4 w-4 text-[#087F5B]" aria-hidden="true" />
-                  {bn ? 'রেকর্ড আইডি' : 'Record ID'}
+            {/* Selected Property Overview & Claimant Banner */}
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-6 shadow-2xs space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-900 border border-emerald-200">
+                      {scenario.code}
+                    </span>
+                    <span className="text-slate-300">·</span>
+                    <span className="text-xs font-semibold text-slate-500">
+                      {isBn ? 'নির্বাচিত জমির বিবরণ' : 'Selected Land Profile'}
+                    </span>
+                  </div>
+                  <h2 className="mt-1.5 text-lg sm:text-2xl font-bold text-slate-900">
+                    {isBn ? scenario.titleBn : scenario.titleEn}
+                  </h2>
+                  <p className="mt-1 text-xs sm:text-sm text-slate-600 max-w-3xl leading-relaxed">
+                    {isBn ? scenario.descriptionBn : scenario.descriptionEn}
+                  </p>
                 </div>
-                <p className="mt-2 truncate font-mono text-sm font-bold text-slate-800">{record.trackingCode}</p>
+
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 self-start md:self-auto">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                    <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>{isBn ? scenario.tagBn : scenario.tagEn}</span>
+                  </span>
+                  <Link
+                    href={`/result/${scenario.id}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  >
+                    <span>{isBn ? 'মূল্যায়ন সারাংশ' : 'Full Assessment'}</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
+                  </Link>
+                </div>
               </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <GitBranch className="h-4 w-4 text-[#087F5B]" aria-hidden="true" />
-                  {bn ? 'উপলভ্য ইতিহাস এন্ট্রি' : 'Available history entries'}
+
+              {/* Property Details Ribbon */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 block">{isBn ? 'মৌজা ও জেএল' : 'Mouza & JL'}</span>
+                  <p className="mt-1 font-bold text-slate-800">{parcel.mouzaBn} (JL-{parcel.jlNo})</p>
                 </div>
-                <p className="mt-2 text-sm font-bold text-slate-800">{record.ownershipHistory.length}</p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <MapPin className="h-4 w-4 text-[#087F5B]" aria-hidden="true" />
-                  {bn ? 'জমির পরিমাণ' : 'Parcel area'}
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 block">{isBn ? 'উপজেলা ও জেলা' : 'Upazila & District'}</span>
+                  <p className="mt-1 font-bold text-slate-800">{parcel.upazilaBn}, {parcel.districtBn}</p>
                 </div>
-                <p className="mt-2 text-sm font-bold text-slate-800">
-                  {parcel.areaDecimals == null ? (bn ? 'তথ্য নেই' : 'Not available') : `${parcel.areaDecimals} ${bn ? 'শতাংশ' : 'decimal'}`}
-                </p>
-              </div>
-              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <CalendarDays className="h-4 w-4 text-[#087F5B]" aria-hidden="true" />
-                  {bn ? 'সর্বশেষ রেকর্ডের বছর' : 'Latest record year'}
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 block">{isBn ? 'দাগ ও খতিয়ান' : 'Dag & Khatian'}</span>
+                  <p className="mt-1 font-bold text-slate-800">দাগ {parcel.dagNo} · খতিয়ান {parcel.khatianNo}</p>
                 </div>
-                <p className="mt-2 text-sm font-bold text-slate-800">{latestTransfer?.year || (bn ? 'তথ্য নেই' : 'Not available')}</p>
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 block">{isBn ? 'জরিপ ও শ্রেণী' : 'Survey & Class'}</span>
+                  <p className="mt-1 font-bold text-slate-800">{parcel.surveyType} · {parcel.landClassBn}</p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 block">{isBn ? 'মোট জমির পরিমাণ' : 'Total Parcel Area'}</span>
+                  <p className="mt-1 font-bold text-[#087F5B]">{areaSummary.decimalStr}</p>
+                </div>
+                <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-100">
+                  <span className="text-[11px] font-semibold text-slate-400 block">{isBn ? 'বর্তমান দাবিদার' : 'Current Claimant'}</span>
+                  <p className="mt-1 font-bold text-slate-900 truncate">{claimant.nameBn}</p>
+                </div>
               </div>
             </div>
 
-            <div className="mt-6 grid items-start gap-5 lg:grid-cols-[220px_minmax(0,1fr)_300px]">
-              <aside className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                <h2 className="mb-3 text-sm font-bold text-slate-900">{bn ? 'এই পৃষ্ঠায়' : 'On this page'}</h2>
-                <nav className="space-y-1 text-sm">
-                  <a href="#ownership-timeline" className="flex items-center gap-2 rounded-lg bg-[#eaf5f0] px-3 py-2.5 font-semibold text-[#087F5B]">
-                    <GitBranch className="h-4 w-4" aria-hidden="true" />
-                    {bn ? 'মালিকানা সময়রেখা' : 'Ownership timeline'}
-                  </a>
-                  <a href="#parcel-summary" className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">
-                    <MapPin className="h-4 w-4" aria-hidden="true" />
-                    {bn ? 'জমির সংক্ষিপ্ত তথ্য' : 'Parcel summary'}
-                  </a>
-                  <a href="#record-references" className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900">
-                    <FileText className="h-4 w-4" aria-hidden="true" />
-                    {bn ? 'রেকর্ড রেফারেন্স' : 'Record references'}
-                  </a>
-                </nav>
-                <div className="mt-4 border-t border-slate-100 pt-4">
-                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                    {bn ? 'উৎস' : 'Source'}
-                  </p>
-                  <p className="mt-1.5 text-xs leading-5 text-slate-600">{demoSourceLabel}</p>
-                </div>
-              </aside>
+            {/* Ownership Summary Dashboard Cards (4 Calculated Cards + Source Distinction) */}
+            <OwnershipSummaryCards scenario={scenario} lang={lang} />
 
-              <section id="ownership-timeline" className="min-w-0 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
-                <div className="mb-5 flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
-                  <div>
-                    <p className="text-xs font-semibold text-[#087F5B]">{bn ? 'রেকর্ড পর্যালোচনা' : 'RECORD REVIEW'}</p>
-                    <h2 className="mt-1 text-lg font-bold text-slate-900 sm:text-xl">
-                      {bn ? 'মালিকানা ইতিহাস' : 'Ownership timeline'}
-                    </h2>
-                    <p className="mt-1 text-xs text-slate-500">{record.trackingCode}</p>
-                  </div>
-                  <StatusBadge status={record.status} lang={lang} />
-                </div>
-                <OwnershipTimeline
-                  transfers={record.ownershipHistory}
-                  parcelSummary={`${parcel.surveyType} · ${bn ? 'দাগ' : 'Dag'} ${parcel.dagNo} · ${bn ? 'খতিয়ান' : 'Khatian'} ${parcel.khatianNo}`}
-                />
-                <Link
-                  href={`/result/${record.id}`}
-                  className="mt-5 inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-[#087F5B]/30 hover:bg-[#f2f8f5] hover:text-[#087F5B]"
-                >
-                  {bn ? 'সম্পূর্ণ পর্যবেক্ষণ দেখুন' : 'View full assessment'}
-                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
-                </Link>
-              </section>
+            {/* Demo Scenario Selector (5 Scenarios) */}
+            <ScenarioSelector
+              currentScenario={scenario}
+              onSelectScenario={handleSelectScenario}
+              lang={lang}
+            />
 
-              <aside className="space-y-4">
-                <section id="parcel-summary" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="mb-4 flex items-center justify-between gap-2">
-                    <h2 className="text-sm font-bold text-slate-900">{bn ? 'জমির সংক্ষিপ্ত তথ্য' : 'Parcel overview'}</h2>
-                    <MapPin className="h-4 w-4 text-[#087F5B]" aria-hidden="true" />
-                  </div>
-                  <dl className="space-y-3 text-xs">
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-slate-500">{bn ? 'মৌজা' : 'Mouza'}</dt>
-                      <dd className="text-right font-semibold text-slate-800">{parcel.mouza}</dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-slate-500">{bn ? 'উপজেলা / জেলা' : 'Upazila / district'}</dt>
-                      <dd className="text-right font-semibold text-slate-800">{parcel.upazila}, {parcel.district}</dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-slate-500">{bn ? 'জরিপ' : 'Survey'}</dt>
-                      <dd className="text-right font-semibold text-slate-800">{parcel.surveyType}</dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-slate-500">{bn ? 'জে.এল. নম্বর' : 'JL number'}</dt>
-                      <dd className="text-right font-semibold text-slate-800">{parcel.jlNo || (bn ? 'তথ্য নেই' : 'Not available')}</dd>
-                    </div>
-                    <div className="flex justify-between gap-3">
-                      <dt className="text-slate-500">{bn ? 'দাগ / খতিয়ান' : 'Dag / khatian'}</dt>
-                      <dd className="text-right font-semibold text-slate-800">{parcel.dagNo} / {parcel.khatianNo}</dd>
-                    </div>
-                  </dl>
-                </section>
+            {/* Full-Width Interactive Ownership Timeline */}
+            <InteractiveOwnershipTimeline
+              events={scenario.events}
+              parcelSummaryText={`${parcel.mouzaBn} মৌজা, ${parcel.upazilaBn} · ${parcel.surveyType} জরিপ · দাগ নং ${parcel.dagNo} · খতিয়ান নং ${parcel.khatianNo} · মোট জমি ${areaSummary.decimalStr}`}
+              lang={lang}
+            />
 
-                <section id="record-references" className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="mb-3 flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-[#087F5B]" aria-hidden="true" />
-                    <h2 className="text-sm font-bold text-slate-900">{bn ? 'রেকর্ড রেফারেন্স' : 'Record references'}</h2>
-                  </div>
-                  <p className="mb-3 text-xs leading-5 text-slate-500">
-                    {bn ? 'এগুলো ডেমো রেফারেন্স নম্বর; মূল দলিল বা যাচাইকৃত নথি নয়।' : 'Demo reference numbers only; these are not original or verified documents.'}
-                  </p>
-                  <div className="space-y-2">
-                    {record.ownershipHistory.map((item) => (
-                      <div key={item.id} className="flex items-start gap-2 rounded-lg bg-slate-50 p-3">
-                        <FileText className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-700">{bn ? 'ডেমো দলিল রেফারেন্স' : 'Demo deed reference'}</p>
-                          <p className="mt-1 break-all font-mono text-[11px] text-slate-500">{item.deedNumber || (bn ? 'উপলভ্য নয়' : 'Not available')}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+            {/* Document Cross-Checking Panel */}
+            <DocumentCrossCheckPanel crossChecks={scenario.crossChecks} lang={lang} />
 
-                <section className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                  <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" aria-hidden="true" />
-                    <div>
-                      <h2 className="text-xs font-bold text-amber-900">{bn ? 'গুরুত্বপূর্ণ তথ্য' : 'Important information'}</h2>
-                      <p className="mt-1.5 text-xs leading-5 text-amber-900/85">
-                        {bn
-                          ? 'এটি সম্পূর্ণ হস্তান্তর-ইতিহাস নয় এবং আইনি মালিকানা প্রমাণ করে না। কোনো সরকারি রেকর্ড যাচাই করা হয়নি।'
-                          : 'This is not a complete transfer history or proof of legal ownership. No government records were checked.'}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3 flex items-center gap-1.5 border-t border-amber-200/80 pt-3 text-[11px] font-medium text-amber-900">
-                    <ShieldCheck className="h-3.5 w-3.5" aria-hidden="true" />
-                    {bn ? 'অফিসিয়াল যাচাইয়ের জন্য সংশ্লিষ্ট ভূমি অফিসে যোগাযোগ করুন' : 'Contact the relevant land office for official verification'}
-                  </div>
-                </section>
-                <p className="flex items-start gap-2 px-1 text-[11px] leading-5 text-slate-500">
-                  <CircleHelp className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  {bn ? 'নমুনা ডেটা থেকে মালিকানা, জমির সীমানা বা আইনি অবস্থা নিশ্চিত করা যায় না।' : 'Sample data cannot confirm ownership, parcel boundaries, or legal status.'}
-                </p>
-              </aside>
-            </div>
+            {/* Issue and Risk Analysis Panel */}
+            <IssueAnalysisPanel issues={scenario.issues} lang={lang} />
+
+            {/* Actionable Next Steps Checklist */}
+            <NextStepsChecklist checklist={scenario.checklist} lang={lang} />
+
+            {/* Persistent Legal Disclaimer & Due Diligence Advisory */}
+            <OwnershipLegalDisclaimer lang={lang} />
           </>
-        ) : !error ? (
-          <p className="mt-8 rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
-            {bn ? 'রেকর্ড দেখতে উপরে ID লিখে অনুসন্ধান করুন।' : 'Enter a record ID above to view its available history.'}
-          </p>
-        ) : null}
+        )}
       </div>
     </main>
   );

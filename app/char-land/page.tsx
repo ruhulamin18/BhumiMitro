@@ -1,1523 +1,1460 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import Link from 'next/link';
+import React, { useState, useRef } from 'react';
 import {
   Search,
-  MapPin,
-  Building2,
-  FileText,
-  Map as MapIcon,
-  Download,
-  Eye,
-  Plus,
-  Minus,
-  Layers,
-  X,
-  ChevronDown,
   ShieldCheck,
-  Tractor,
-  FileSpreadsheet,
-  AlertCircle,
-  ExternalLink,
-  ChevronLeft,
-  ChevronRight,
-  Info,
+  CheckCircle2,
+  XCircle,
   RotateCcw,
+  Waves,
+  Scale,
+  BookOpen,
+  ArrowRight,
+  X,
+  Clock,
+  Users,
+  Home,
+  Gavel,
+  UserCheck,
+  UserX,
+  Hash,
+  MapPin,
+  FileText,
+  ChevronRight,
+  ChevronDown,
+  Layers,
+  ListChecks,
+  AlertTriangle,
+  Download,
+  Check,
+  Sparkles,
+  Shield,
+  HelpCircle,
+  FileSpreadsheet,
 } from 'lucide-react';
+import { useLanguage } from '@/components/LanguageContext';
+import {
+  DEMO_CHAR_RECORDS,
+  CharLandRecord,
+  HistoricalOwner,
+} from '@/lib/mock-data/char-assessment-data';
 
-interface KhasCharRecord {
-  id: number;
-  landId?: string;
-  slBn: string;
-  mouza: string;
-  upazila: string;
-  district: string;
-  division: string;
-  areaDec: string;
-  status: string;
-  charType: string;
-  jlNo: string;
-  khatianNo: string;
-  dagNos: string;
-  diaraYear: string;
-  gazetteNo: string;
-  riverName: string;
-  coordinates: { xPercent: number; yPercent: number };
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type RecordType = 'CS' | 'SA' | 'RS' | 'BS' | 'DIARA' | '';
+type CharCondition = 'RE_EMERGED' | 'NEW_ACCRETION' | '';
+type TabKey = 'verdict' | 'history' | 'documents' | 'guide';
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function cn(...classes: (string | false | undefined | null)[]): string {
+  return classes.filter(Boolean).join(' ');
 }
 
-const KHAS_CHAR_DATA: KhasCharRecord[] = [
-  // 5 Detailed River parcels mapped with SVG Polygons
-  {
-    id: 1,
-    slBn: '১',
-    mouza: 'চাঁদপুর',
-    upazila: 'নড়িয়া',
-    district: 'শরীয়তপুর',
-    division: 'ঢাকা',
-    areaDec: '২৫০.০০',
-    status: 'খাস চর',
-    charType: 'জেগে ওঠা নদীগর্ভস্থ চর',
-    jlNo: 'JL-42',
-    khatianNo: '১ (সরকারি খাস)',
-    dagNos: '১২২, ১২৩, ১২৪, ১২৫',
-    diaraYear: '১৯৮২ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৪৭/৮২-খাস',
-    riverName: 'পদ্মা নদী',
-    coordinates: { xPercent: 58, yPercent: 40 },
-  },
-  {
-    id: 2,
-    slBn: '২',
-    mouza: 'মাঝির চর',
-    upazila: 'ভেদরগঞ্জ',
-    district: 'শরীয়তপুর',
-    division: 'ঢাকা',
-    areaDec: '১৮৫.৫০',
-    status: 'খাস চর',
-    charType: 'পয়স্তি নদীগর্ভস্থ খাস',
-    jlNo: 'JL-18',
-    khatianNo: '১ (সরকারি খাস)',
-    dagNos: '৩১০, ৩১১, ৩১২',
-    diaraYear: '১৯৮৮ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৬৩/৮৮-খাস',
-    riverName: 'পদ্মা ও মেঘনা সঙ্গমস্থল',
-    coordinates: { xPercent: 65, yPercent: 62 },
-  },
-  {
-    id: 3,
-    slBn: '৩',
-    mouza: 'চরকামারিয়া',
-    upazila: 'নড়িয়া',
-    district: 'শরীয়তপুর',
-    division: 'ঢাকা',
-    areaDec: '৩২০.২৫',
-    status: 'খাস চর',
-    charType: 'দ্বীপ চর (খাস ভূ-সম্পত্তি)',
-    jlNo: 'JL-29',
-    khatianNo: '১ (সরকারি খাস)',
-    dagNos: '৫১৫, ৫১৬, ৫১৭, ৫২০',
-    diaraYear: '১৯৯৫ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-১২/৯৫-খাস',
-    riverName: 'পদ্মা নদী',
-    coordinates: { xPercent: 20, yPercent: 32 },
-  },
-  {
-    id: 4,
-    slBn: '৪',
-    mouza: 'নিউ চর',
-    upazila: 'সখিপুর',
-    district: 'টাঙ্গাইল',
-    division: 'ঢাকা',
-    areaDec: '১৪৭.৭৫',
-    status: 'খাস চর',
-    charType: 'যমুনার জেগে ওঠা চর',
-    jlNo: 'JL-53',
-    khatianNo: '১ (সরকারি খাস)',
-    dagNos: '৮৮, ৮৯, ৯০',
-    diaraYear: '২০০২ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-০৯/০২-খাস',
-    riverName: 'যমুনা নদী',
-    coordinates: { xPercent: 45, yPercent: 18 },
-  },
-  {
-    id: 5,
-    slBn: '৫',
-    mouza: 'চরবেহাট',
-    upazila: 'ভেদরগঞ্জ',
-    district: 'শরীয়তপুর',
-    division: 'ঢাকা',
-    areaDec: '২১২.০০',
-    status: 'খাস চর',
-    charType: 'তীরবর্তী পয়স্তি চর',
-    jlNo: 'JL-61',
-    khatianNo: '১ (সরকারি খাস)',
-    dagNos: '৪৪১, ৪৪২, ৪৪৫',
-    diaraYear: '১৯৯৮ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৮১/৯৮-খাস',
-    riverName: 'মেঘনা নদী',
-    coordinates: { xPercent: 78, yPercent: 62 },
-  },
+const bnDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+function formatNumber(num: number | string | undefined | null, lang: 'bn' | 'en'): string {
+  if (num === undefined || num === null) return '';
+  const str = String(num);
+  if (lang === 'en') return str;
+  return str.replace(/[0-9]/g, (d) => bnDigits[parseInt(d, 10)]);
+}
 
-  // 20 Master Khas & Char Records linked directly to BM-DEMO-001 - BM-DEMO-020
-  {
-    id: 6,
-    landId: 'BM-DEMO-001',
-    slBn: '৬',
-    mouza: 'ডেমো মৌজা ক (পুঠিয়া)',
-    upazila: 'পুঠিয়া',
-    district: 'রাজশাহী',
-    division: 'রাজশাহী',
-    areaDec: '১২.৫০',
-    status: 'যোগ্য কৃষি খাস',
-    charType: 'পদ্মা সিকস্তির পর জেগে ওঠা সাবেক জোত',
-    jlNo: 'JL-01',
-    khatianNo: 'KHT-DEMO-1001 (১নং খাস)',
-    dagNos: 'DAG-DEMO-2001',
-    diaraYear: '২০০৫ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-১২/৮৯-খাস',
-    riverName: 'পদ্মা নদী',
-    coordinates: { xPercent: 28, yPercent: 48 },
-  },
-  {
-    id: 7,
-    landId: 'BM-DEMO-002',
-    slBn: '৭',
-    mouza: 'ডেমো মৌজা ক (পুঠিয়া)',
-    upazila: 'পুঠিয়া',
-    district: 'রাজশাহী',
-    division: 'রাজশাহী',
-    areaDec: '৮.০০',
-    status: 'পর্যালোচিত খাস',
-    charType: 'বারনই নদী গতিপথ পরিবর্তনের ফলে সৃষ্ট নবগঠিত চর',
-    jlNo: 'JL-01',
-    khatianNo: 'KHT-DEMO-1002',
-    dagNos: 'DAG-DEMO-2002',
-    diaraYear: '২০১৯ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-২৪/২০-খাস',
-    riverName: 'বারনই নদী',
-    coordinates: { xPercent: 33, yPercent: 44 },
-  },
-  {
-    id: 8,
-    landId: 'BM-DEMO-003',
-    slBn: '৮',
-    mouza: 'ডেমো মৌজা খ (চক রাজাপুর চর)',
-    upazila: 'বাঘা',
-    district: 'রাজশাহী',
-    division: 'রাজশাহী',
-    areaDec: '১৫.০০',
-    status: 'বিরোধপূর্ণ খাস চর',
-    charType: 'পদ্মা নদীগর্ভস্থ বালুচর (দ্বৈত দাবি পর্যালোচনাধীন)',
-    jlNo: 'JL-08',
-    khatianNo: 'KHT-DEMO-1003',
-    dagNos: 'DAG-DEMO-2003',
-    diaraYear: '২০১৬ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-১৯/৯৯-খাস',
-    riverName: 'পদ্মা নদী',
-    coordinates: { xPercent: 36, yPercent: 55 },
-  },
-  {
-    id: 9,
-    landId: 'BM-DEMO-004',
-    slBn: '৯',
-    mouza: 'ডেমো মৌজা গ (ধলেশ্বরী চর)',
-    upazila: 'সাভার',
-    district: 'ঢাকা',
-    division: 'ঢাকা',
-    areaDec: '৬.২৫',
-    status: 'তীরবর্তী খাস চর',
-    charType: 'ধলেশ্বরী নদী ভরাট ও তীরবর্তী চর স্ট্রিপ জমি',
-    jlNo: 'JL-14',
-    khatianNo: 'KHT-DEMO-1004',
-    dagNos: 'DAG-DEMO-2004',
-    diaraYear: '২০২০ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৩৫/২১-সড়ক',
-    riverName: 'ধলেশ্বরী নদী',
-    coordinates: { xPercent: 52, yPercent: 30 },
-  },
-  {
-    id: 10,
-    landId: 'BM-DEMO-005',
-    slBn: '১০',
-    mouza: 'ডেমো মৌজা গ (বংশী তীরবর্তী)',
-    upazila: 'সাভার',
-    district: 'ঢাকা',
-    division: 'ঢাকা',
-    areaDec: '১০.০০',
-    status: 'প্লাবনভূমি খাস জমি',
-    charType: 'বংশী নদীর প্লাবনভূমি (নদী রক্ষা কমিশন নজরদারি)',
-    jlNo: 'JL-14',
-    khatianNo: 'KHT-DEMO-1005',
-    dagNos: 'DAG-DEMO-2005',
-    diaraYear: '২০১৭ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৪৬/২২-খাস',
-    riverName: 'বংশী নদী',
-    coordinates: { xPercent: 48, yPercent: 36 },
-  },
-  {
-    id: 11,
-    landId: 'BM-DEMO-006',
-    slBn: '১১',
-    mouza: 'ডেমো মৌজা ঘ (গোমতী চর)',
-    upazila: 'দেবিদ্বার',
-    district: 'কুমিল্লা',
-    division: 'চট্টগ্রাম',
-    areaDec: '২০.০০',
-    status: 'যোগ্য কৃষি খাস',
-    charType: 'গোমতী নদীর বাঁধ সংলগ্ন বন্দোবস্তযোগ্য ফসলি জমি',
-    jlNo: 'JL-22',
-    khatianNo: 'KHT-DEMO-1006',
-    dagNos: 'DAG-DEMO-2006',
-    diaraYear: '২০০৮ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৩৩/০৩-খাস',
-    riverName: 'গোমতী নদী',
-    coordinates: { xPercent: 72, yPercent: 45 },
-  },
-  {
-    id: 12,
-    landId: 'BM-DEMO-007',
-    slBn: '১২',
-    mouza: 'ডেমো মৌজা ঘ (গোমতী নদী এলাকা)',
-    upazila: 'দেবিদ্বার',
-    district: 'কুমিল্লা',
-    division: 'চট্টগ্রাম',
-    areaDec: '৫.৫০',
-    status: 'ভূমিহীন আবেদনভুক্ত খাস',
-    charType: 'গোমতীর মৌসুমি চরাঞ্চল (বর্ষায় জলমগ্ন)',
-    jlNo: 'JL-22',
-    khatianNo: 'KHT-DEMO-1007',
-    dagNos: 'DAG-DEMO-2007',
-    diaraYear: '২০২১ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-১৪/০৭-খাস',
-    riverName: 'গোমতী নদী',
-    coordinates: { xPercent: 69, yPercent: 52 },
-  },
-  {
-    id: 13,
-    landId: 'BM-DEMO-008',
-    slBn: '১৩',
-    mouza: 'ডেমো মৌজা ঙ (ভদ্রা নদী এলাকা)',
-    upazila: 'ডুমুরিয়া',
-    district: 'খুলনা',
-    division: 'খুলনা',
-    areaDec: '১৮.০০',
-    status: 'সংরক্ষিত জলমহাল খাস',
-    charType: 'সরকারি সংরক্ষিত জলমহাল ও বিল (বন্দোবস্ত অযোগ্য)',
-    jlNo: 'JL-35',
-    khatianNo: 'KHT-DEMO-1008',
-    dagNos: 'DAG-DEMO-2008',
-    diaraYear: '১৯৯৯ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-০৮/৯৩-জলমহাল',
-    riverName: 'ভদ্রা নদী',
-    coordinates: { xPercent: 38, yPercent: 74 },
-  },
-  {
-    id: 14,
-    landId: 'BM-DEMO-009',
-    slBn: '১৪',
-    mouza: 'ডেমো মৌজা ঙ (শৈলমারী চর)',
-    upazila: 'ডুমুরিয়া',
-    district: 'খুলনা',
-    division: 'খুলনা',
-    areaDec: '৯.০০',
-    status: 'বন্দোবস্তকৃত খাস চর',
-    charType: 'উপকূলীয় পোল্ডারভুক্ত স্থিতিশীল চর (মুক্তিযোদ্ধা বন্দোবস্ত)',
-    jlNo: 'JL-35',
-    khatianNo: 'KHT-DEMO-1009',
-    dagNos: 'DAG-DEMO-2009',
-    diaraYear: '২০০০ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-০২/০৮-মুক্তিযোদ্ধা',
-    riverName: 'শৈলমারী নদী',
-    coordinates: { xPercent: 43, yPercent: 80 },
-  },
-  {
-    id: 15,
-    landId: 'BM-DEMO-010',
-    slBn: '১৫',
-    mouza: 'ডেমো মৌজা চ (রূপপুর চর)',
-    upazila: 'ঈশ্বরদী',
-    district: 'পাবনা',
-    division: 'রাজশাহী',
-    areaDec: '১১.০০',
-    status: 'যোগ্য কৃষি খাস চর',
-    charType: 'পদ্মা নদীর ডান তীরের বাঁধ সংলগ্ন সংরক্ষিত জেগে ওঠা চর',
-    jlNo: 'JL-41',
-    khatianNo: 'KHT-DEMO-1010',
-    dagNos: 'DAG-DEMO-2010',
-    diaraYear: '২০১২ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৫৭/২৩-খাস',
-    riverName: 'পদ্মা নদী',
-    coordinates: { xPercent: 40, yPercent: 46 },
-  },
-  {
-    id: 16,
-    landId: 'BM-DEMO-011',
-    slBn: '১৬',
-    mouza: 'ডেমো মৌজা চ (লক্ষ্মীকুণ্ডা চর)',
-    upazila: 'ঈশ্বরদী',
-    district: 'পাবনা',
-    division: 'রাজশাহী',
-    areaDec: '১৪.০০',
-    status: 'মৌসুমি খাস চর',
-    charType: 'পদ্মার শুকনো মৌসুমে বোরো চাষাবাদ উপযোগী চরাঞ্চল',
-    jlNo: 'JL-41',
-    khatianNo: 'KHT-DEMO-1011',
-    dagNos: 'DAG-DEMO-2011',
-    diaraYear: '২০১৫ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৫১/১১-খাস',
-    riverName: 'পদ্মা নদী',
-    coordinates: { xPercent: 44, yPercent: 50 },
-  },
-  {
-    id: 17,
-    landId: 'BM-DEMO-012',
-    slBn: '১৭',
-    mouza: 'ডেমো মৌজা ছ (করতোয়া চর)',
-    upazila: 'শাজাহানপুর',
-    district: 'বগুড়া',
-    division: 'রাজশাহী',
-    areaDec: '৭.৭৫',
-    status: 'বিরোধপূর্ণ খাস চর',
-    charType: 'করতোয়া নদীর মৃতপ্রায় গর্ভে ভরাট জমি (বালাম অমিল)',
-    jlNo: 'JL-48',
-    khatianNo: 'KHT-DEMO-1012',
-    dagNos: 'DAG-DEMO-2012',
-    diaraYear: '২০১৮ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৬৮/২১-খাস',
-    riverName: 'করতোয়া নদী',
-    coordinates: { xPercent: 38, yPercent: 24 },
-  },
-  {
-    id: 18,
-    landId: 'BM-DEMO-013',
-    slBn: '১৮',
-    mouza: 'ডেমো মৌজা ছ (বাঙ্গালী নদী চর)',
-    upazila: 'শাজাহানপুর',
-    district: 'বগুড়া',
-    division: 'রাজশাহী',
-    areaDec: '১৬.০০',
-    status: 'যোগ্য কৃষি খাস চর',
-    charType: 'বাঙ্গালী নদীর সিকস্তির পর পুনরায় আংশিক জেগে ওঠা কৃষি জমি',
-    jlNo: 'JL-48',
-    khatianNo: 'KHT-DEMO-1013',
-    dagNos: 'DAG-DEMO-2013',
-    diaraYear: '২০০৭ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৭২/১৪-খাস',
-    riverName: 'বাঙ্গালী নদী',
-    coordinates: { xPercent: 42, yPercent: 28 },
-  },
-  {
-    id: 19,
-    landId: 'BM-DEMO-014',
-    slBn: '১৯',
-    mouza: 'ডেমো মৌজা জ (কারখানা নদী চর)',
-    upazila: 'বাকেরগঞ্জ',
-    district: 'বরিশাল',
-    division: 'বরিশাল',
-    areaDec: '১৩.০০',
-    status: 'বিরোধপূর্ণ খাস চর',
-    charType: 'কারখানা নদীর তীরে জেগে ওঠা পলিমাটির নতুন চর',
-    jlNo: 'JL-57',
-    khatianNo: 'KHT-DEMO-1014',
-    dagNos: 'DAG-DEMO-2014',
-    diaraYear: '২০১৮ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৬১/১৫-খাস',
-    riverName: 'কারখানা নদী',
-    coordinates: { xPercent: 54, yPercent: 76 },
-  },
-  {
-    id: 20,
-    landId: 'BM-DEMO-015',
-    slBn: '২০',
-    mouza: 'ডেমো মৌজা জ (পায়রা মোহনা চর)',
-    upazila: 'বাকেরগঞ্জ',
-    district: 'বরিশাল',
-    division: 'বরিশাল',
-    areaDec: '৪.৫০',
-    status: 'আবাসন প্রস্তাবিত খাস',
-    charType: 'পায়রা নদী মোহনার ভাঙনপ্রবণ চর (আবাসন প্রস্তাবিত)',
-    jlNo: 'JL-57',
-    khatianNo: 'KHT-DEMO-1015',
-    dagNos: 'DAG-DEMO-2015',
-    diaraYear: '২০২২ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৭৯/২০-আবাসন',
-    riverName: 'পায়রা নদী',
-    coordinates: { xPercent: 59, yPercent: 82 },
-  },
-  {
-    id: 21,
-    landId: 'BM-DEMO-016',
-    slBn: '২১',
-    mouza: 'ডেমো মৌজা ঝ (সুতিয়া চর)',
-    upazila: 'ত্রিশাল',
-    district: 'ময়মনসিংহ',
-    division: 'ময়মনসিংহ',
-    areaDec: '২২.০০',
-    status: 'যোগ্য কৃষি খাস চর',
-    charType: 'সুতিয়া নদীর গতিপথ পরিবর্তনের ফলে স্থায়ী হওয়া কৃষি জমি',
-    jlNo: 'JL-63',
-    khatianNo: 'KHT-DEMO-1016',
-    dagNos: 'DAG-DEMO-2016',
-    diaraYear: '১৯৯৫ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৮৩/১৭-খাস',
-    riverName: 'সুতিয়া নদী',
-    coordinates: { xPercent: 60, yPercent: 22 },
-  },
-  {
-    id: 22,
-    landId: 'BM-DEMO-017',
-    slBn: '২২',
-    mouza: 'ডেমো মৌজা ঝ (ব্রহ্মপুত্র শাখা চর)',
-    upazila: 'ত্রিশাল',
-    district: 'ময়মনসিংহ',
-    division: 'ময়মনসিংহ',
-    areaDec: '৮.৫০',
-    status: 'বন্দোবস্তযোগ্য খাস চর',
-    charType: 'পুরাতন ব্রহ্মপুত্র শাখা নদীর জেগে ওঠা দ্বীপ চর (ভূমিহীন অগ্রাধিকার)',
-    jlNo: 'JL-63',
-    khatianNo: 'KHT-DEMO-1017',
-    dagNos: 'DAG-DEMO-2017',
-    diaraYear: '২০১৩ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৪৭/৮২-খাস',
-    riverName: 'পুরাতন ব্রহ্মপুত্র',
-    coordinates: { xPercent: 56, yPercent: 26 },
-  },
-  {
-    id: 23,
-    landId: 'BM-DEMO-018',
-    slBn: '২৩',
-    mouza: 'ডেমো মৌজা ঞ (মেঘনা মোহনা চর)',
-    upazila: 'সন্দ্বীপ',
-    district: 'চট্টগ্রাম',
-    division: 'চট্টগ্রাম',
-    areaDec: '৩০.০০',
-    status: 'পরিবর্তনশীল খাস চর',
-    charType: 'মেঘনা মোহনায় জেগে ওঠা নতুন চর (জোয়ার-ভাটা পরিবর্তনশীল)',
-    jlNo: 'JL-72',
-    khatianNo: 'KHT-DEMO-1018',
-    dagNos: 'DAG-DEMO-2018',
-    diaraYear: '২০১৪ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৯০/২১-দিয়ারা',
-    riverName: 'মেঘনা নদী',
-    coordinates: { xPercent: 82, yPercent: 72 },
-  },
-  {
-    id: 24,
-    landId: 'BM-DEMO-019',
-    slBn: '২৪',
-    mouza: 'ডেমো মৌজা ঞ (উড়িরচর সংলগ্ন)',
-    upazila: 'সন্দ্বীপ',
-    district: 'চট্টগ্রাম',
-    division: 'চট্টগ্রাম',
-    areaDec: '১২.০০',
-    status: 'বন্দোবস্তকৃত খাস চর',
-    charType: 'উপকূলীয় সবুজ বেষ্টনী ও পুনর্বাসন আওতায় জরিপকৃত চর',
-    jlNo: 'JL-72',
-    khatianNo: 'KHT-DEMO-1019',
-    dagNos: 'DAG-DEMO-2019',
-    diaraYear: '২০০২ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-০৯/১৯-উপকূল',
-    riverName: 'বঙ্গোপসাগর মোহনা',
-    coordinates: { xPercent: 86, yPercent: 78 },
-  },
-  {
-    id: 25,
-    landId: 'BM-DEMO-020',
-    slBn: '২৫',
-    mouza: 'ডেমো মৌজা ট (ব্রহ্মপুত্র চর)',
-    upazila: 'চিলমারী',
-    district: 'কুড়িগ্রাম',
-    division: 'রংপুর',
-    areaDec: '২৫.০০',
-    status: 'ভাঙনপ্রবণ খাস চর',
-    charType: 'ব্রহ্মপুত্র নদের চরাঞ্চল (নদীভাঙন ও আইনি বিরোধাধীন)',
-    jlNo: 'JL-88',
-    khatianNo: 'KHT-DEMO-1020',
-    dagNos: 'DAG-DEMO-2020',
-    diaraYear: '২০১১ দিয়ারা জরিপ',
-    gazetteNo: 'গেজেট নং-৯১/২৩-ব্রহ্মপুত্র',
-    riverName: 'ব্রহ্মপুত্র নদ',
-    coordinates: { xPercent: 32, yPercent: 14 },
-  },
-];
+const RECORD_TYPES: ('CS' | 'SA' | 'RS' | 'BS' | 'DIARA')[] = ['CS', 'SA', 'RS', 'BS', 'DIARA'];
 
-const ITEMS_PER_PAGE = 7;
+const DIVISIONS = ['Dhaka', 'Chittagong', 'Rajshahi', 'Khulna', 'Barisal', 'Rangpur', 'Sylhet', 'Mymensingh'];
 
-export default function KhasCharPage() {
-  // Form Filter State
-  const [division, setDivision] = useState('সব');
-  const [district, setDistrict] = useState('সব');
-  const [upazila, setUpazila] = useState('সব');
-  const [mouza, setMouza] = useState('সব');
-  const [charType, setCharType] = useState('সব');
+const DISTRICTS_MAP: Record<string, string[]> = {
+  Dhaka: ['Faridpur', 'Manikganj', 'Munshiganj', 'Dhaka', 'Gazipur'],
+  Chittagong: ['Chandpur', 'Noakhali', 'Chittagong', 'Cox\'s Bazar', 'Comilla'],
+  Rajshahi: ['Sirajganj', 'Pabna', 'Rajshahi', 'Bogra'],
+  Khulna: ['Kushtia', 'Khulna', 'Jessore', 'Satkhira'],
+  Barisal: ['Bhola', 'Barisal', 'Patuakhali', 'Pirojpur'],
+  Rangpur: ['Kurigram', 'Gaibandha', 'Rangpur', 'Lalmonirhat'],
+  Sylhet: ['Sylhet', 'Sunamganj', 'Moulvibazar'],
+  Mymensingh: ['Mymensingh', 'Jamalpur', 'Sherpur'],
+};
 
-  // Search input in Map card
-  const [mapSearch, setMapSearch] = useState('');
+// ─── Legal Reference Drawer ───────────────────────────────────────────────────
 
-  // Map state
-  const [selectedParcel, setSelectedParcel] = useState<KhasCharRecord | null>(KHAS_CHAR_DATA[0]);
-  const [zoomLevel, setZoomLevel] = useState<number>(1);
-  const [mapLayer, setMapLayer] = useState<'satellite' | 'terrain'>('satellite');
-  const [showPopup, setShowPopup] = useState<boolean>(true);
+function LegalDrawer({ onClose, lang }: { onClose: () => void; lang: 'bn' | 'en' }) {
+  const isBn = lang === 'bn';
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+      <div
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
+        onClick={onClose}
+      />
+      <div className="relative z-10 w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl bg-white shadow-2xl border border-slate-200">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white/95 backdrop-blur px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100 text-emerald-800">
+              <Scale className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                {isBn ? 'আইনি গাইডলাইন ও রেফারেন্স' : 'Legal Guidelines & Reference'}
+              </p>
+              <h2 className="text-base font-bold text-slate-800">
+                {isBn
+                  ? 'রাষ্ট্রীয় অধিগ্রহণ ও প্রজাস্বত্ব আইন, ১৯৫০ (SAT Act)'
+                  : 'State Acquisition and Tenancy Act, 1950 (SAT Act)'}
+              </h2>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-  // Detail Modal state
-  const [modalRecord, setModalRecord] = useState<KhasCharRecord | null>(null);
+        <div className="px-6 py-5 space-y-5">
+          {/* Section 86 */}
+          <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-black text-white">
+                {isBn ? '৮৬' : '86'}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-blue-900">
+                  {isBn
+                    ? 'ধারা ৮৬ — নদী সিকস্তি ও পুনরায় পয়স্তি ভূমি স্বত্ব'
+                    : 'Section 86 — Diluvion (Sikosti) & Alluvion (Poyasti) Rights'}
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-blue-800">
+                  {isBn
+                    ? 'নদীভাঙনে কোনো ব্যক্তিগত জমি বিলীন (সিকস্তি) হওয়ার পর পুনরায় ভেসে উঠলে (পয়স্তি) মালিকানার অধিকার নির্ধারিত হয় নিমজ্জনের সময়কালের ওপর ভিত্তি করে:'
+                    : 'When private land diluviates into riverbed and subsequently re-emerges as alluvion, ownership entitlement depends on duration of submersion:'}
+                </p>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <div className="rounded-lg border border-blue-300 bg-white/80 p-3">
+                    <p className="text-xs font-bold text-blue-800 flex items-center gap-1.5">
+                      <CheckCircle2 className="h-4 w-4 text-blue-600" />
+                      {isBn ? '৩০ বছরের মধ্যে (Restorable)' : 'Within 30 Years (Restorable)'}
+                    </p>
+                    <p className="mt-1 text-[11px] text-blue-700 leading-relaxed">
+                      {isBn
+                        ? 'মূল মালিক বা তাঁদের আইনানুগ ওয়ারিশগণ CS/SA/RS রেকর্ড ও রেজিস্ট্রি দলিল প্রদর্শন করে নামজারি ও সীমানা ডিমার্কেশন দাবি করতে পারবেন।'
+                        : 'Original owners or legitimate heirs may claim mutation and demarcation by producing CS/SA/RS records & title deeds.'}
+                    </p>
+                  </div>
+                  <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+                    <p className="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+                      <XCircle className="h-4 w-4 text-amber-600" />
+                      {isBn ? '৩০ বছরের বেশি (Barred by Limitation)' : 'Over 30 Years (Barred by Limitation)'}
+                    </p>
+                    <p className="mt-1 text-[11px] text-amber-700 leading-relaxed">
+                      {isBn
+                        ? 'তামাদি আইন অনুযায়ী সাবেক মালিকের সকল ব্যক্তিগত অধিকার বিলুপ্ত হয় এবং জমিটি সরকারের ১নং খাস খতিয়ানভুক্ত হয়।'
+                        : 'By statutory limitation, private ownership is extinguished and the land vests strictly in Government Khas Khatian 1.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
 
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState<number>(1);
+          {/* Section 87 */}
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-xs font-black text-white">
+                {isBn ? '৮৭' : '87'}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-emerald-900">
+                  {isBn
+                    ? 'ধারা ৮৭ — নতুন পয়স্তি চর ও সরকারি খাস জমি'
+                    : 'Section 87 — New Alluvial Char & Government Khas Land'}
+                </h3>
+                <p className="mt-1 text-xs leading-relaxed text-emerald-800">
+                  {isBn
+                    ? 'নদীগর্ভে পলি জমে গঠিত সম্পূর্ণ নতুন চর সরাসরি রাষ্ট্রের সম্পত্তি। এই জমিতে কোনো সাবেক ব্যক্তিমালিকানা দাবি কার্যকর নয়।'
+                    : 'New char land formed by silt accretion vests immediately in the State. Prior private claims are inadmissible.'}
+                </p>
+                <ul className="mt-2.5 space-y-1.5 text-xs text-emerald-800">
+                  <li className="flex items-start gap-2">
+                    <ArrowRight className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span>
+                      {isBn ? (
+                        <><strong>৯৯ বছরের বন্দোবস্ত:</strong> স্থানীয় প্রকৃত ভূমিহীন কৃষক পরিবার প্রতি সর্বোচ্চ ১.৫০ একর জমি বন্দোবস্তযোগ্য।</>
+                      ) : (
+                        <><strong>99-Year Leasehold:</strong> Genuine local landless farming families can receive agricultural lease up to 1.50 acres.</>
+                      )}
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <ArrowRight className="h-3.5 w-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                    <span>
+                      {isBn ? (
+                        <><strong>পারিবারিক সিলিং:</strong> যেকোনো পরিবারের সর্বোচ্চ ভূ-সম্পত্তির পরিমাণ ৬০ বিঘা পর্যন্ত সীমাবদ্ধ।</>
+                      ) : (
+                        <><strong>Family Ceiling:</strong> Total family agricultural landholding is legally capped at 60 Bighas (~20 acres).</>
+                      )}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  // Dynamic District options based on selected division
-  const availableDistricts = useMemo(() => {
-    let items = KHAS_CHAR_DATA;
-    if (division !== 'সব') {
-      items = items.filter((d) => d.division === division);
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+export default function CharLandVerificationPage() {
+  const { lang } = useLanguage();
+  const isBn = lang === 'bn';
+
+  // 1. Initial State: PURE BLANK / UNSELECTED (CRUCIAL BUG FIX)
+  const [recordType, setRecordType] = useState<RecordType>('');
+  const [khatianNumber, setKhatianNumber] = useState<string>('');
+  const [dagNumber, setDagNumber] = useState<string>('');
+  const [division, setDivision] = useState<string>('');
+  const [district, setDistrict] = useState<string>('');
+  const [upazila, setUpazila] = useState<string>('');
+  const [mouza, setMouza] = useState<string>('');
+  const [jlNumber, setJlNumber] = useState<string>('');
+  const [riverName, setRiverName] = useState<string>('');
+  const [charCondition, setCharCondition] = useState<CharCondition>('');
+  const [diluvionYear, setDiluvionYear] = useState<string>('');
+  const [selectedDemoId, setSelectedDemoId] = useState<string>('');
+
+  // Result & Active Tabs: INITIAL LOAD MUST HAVE NO RESULT CARD
+  const [verificationResult, setVerificationResult] = useState<CharLandRecord | null>(null);
+  const [hasSearched, setHasSearched] = useState<boolean>(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabKey>('verdict');
+  const [showLegal, setShowLegal] = useState<boolean>(false);
+
+  const resultRef = useRef<HTMLDivElement>(null);
+
+  // 2. Handle Reset: Restores exact blank state and hides result card
+  const handleReset = () => {
+    setRecordType('');
+    setKhatianNumber('');
+    setDagNumber('');
+    setDivision('');
+    setDistrict('');
+    setUpazila('');
+    setMouza('');
+    setJlNumber('');
+    setRiverName('');
+    setCharCondition('');
+    setDiluvionYear('');
+    setSelectedDemoId('');
+    setVerificationResult(null);
+    setHasSearched(false);
+    setSearchError(null);
+    setActiveTab('verdict');
+  };
+
+  // 3. Demo Scenario Selector: Pre-fills fields accurately
+  const handleDemoSelect = (demoId: string) => {
+    setSelectedDemoId(demoId);
+    if (!demoId) return;
+
+    const rec = DEMO_CHAR_RECORDS.find((r) => r.id === demoId);
+    if (!rec) return;
+
+    setRecordType(rec.recordType);
+    setKhatianNumber(rec.khatianNumber);
+    setDagNumber(rec.dagNumber);
+    setDivision(rec.division);
+    setDistrict(rec.district);
+    setUpazila(rec.upazila);
+    setMouza(rec.mouza);
+    setJlNumber(rec.jlNumber);
+    setRiverName(rec.riverName);
+    setCharCondition(rec.charCondition);
+    setDiluvionYear(rec.diluvionYear ? String(rec.diluvionYear) : '');
+    setSearchError(null);
+  };
+
+  // 4. Verify & Search Action
+  const handleVerify = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    if (!mouza.trim()) {
+      setSearchError(
+        isBn
+          ? 'অনুগ্রহ করে মৌজার নাম প্রদান করুন।'
+          : 'Please provide Mouza name to proceed.'
+      );
+      return;
     }
-    const set = new Set<string>();
-    items.forEach((item) => set.add(item.district));
-    return Array.from(set);
-  }, [division]);
 
-  // Dynamic Upazila options based on selected district and division
-  const availableUpazilas = useMemo(() => {
-    let items = KHAS_CHAR_DATA;
-    if (division !== 'সব') {
-      items = items.filter((d) => d.division === division);
+    if (!dagNumber.trim() && !khatianNumber.trim()) {
+      setSearchError(
+        isBn
+          ? 'অনুগ্রহ করে খতিয়ান নম্বর অথবা দাগ নম্বর প্রদান করুন।'
+          : 'Please provide either Khatian Number or Dag / Plot Number.'
+      );
+      return;
     }
-    if (district !== 'সব') {
-      items = items.filter((d) => d.district === district);
-    }
-    const set = new Set<string>();
-    items.forEach((item) => set.add(item.upazila));
-    return Array.from(set);
-  }, [division, district]);
 
-  // Dynamic Mouza options based on selected upazila, district, and division
-  const availableMouzas = useMemo(() => {
-    let items = KHAS_CHAR_DATA;
-    if (division !== 'সব') {
-      items = items.filter((d) => d.division === division);
+    if (!charCondition) {
+      setSearchError(
+        isBn
+          ? 'জমির বর্তমান অবস্থা (পুরনো জেগে ওঠা চর নাকি নতুন পয়স্তি চর) নির্বাচন করুন।'
+          : 'Please select Current Land Condition (Re-emerged or Fresh Accretion).'
+      );
+      return;
     }
-    if (district !== 'সব') {
-      items = items.filter((d) => d.district === district);
-    }
-    if (upazila !== 'সব') {
-      items = items.filter((d) => d.upazila === upazila);
-    }
-    const set = new Set<string>();
-    items.forEach((item) => set.add(item.mouza));
-    return Array.from(set);
-  }, [division, district, upazila]);
 
-  // Filtered rows
-  const filteredData = useMemo(() => {
-    return KHAS_CHAR_DATA.filter((item) => {
-      if (division !== 'সব' && item.division !== division) return false;
-      if (district !== 'সব' && item.district !== district) return false;
-      if (upazila !== 'সব' && item.upazila !== upazila) return false;
-      if (mouza !== 'সব' && item.mouza !== mouza) return false;
-      if (charType !== 'সব') {
-        const matchesType =
-          item.status.includes(charType) ||
-          item.charType.includes(charType);
-        if (!matchesType) return false;
-      }
-      if (mapSearch.trim()) {
-        const query = mapSearch.trim().toLowerCase();
-        const match =
-          item.mouza.toLowerCase().includes(query) ||
-          item.upazila.toLowerCase().includes(query) ||
-          item.district.toLowerCase().includes(query) ||
-          item.riverName.toLowerCase().includes(query) ||
-          (item.landId && item.landId.toLowerCase().includes(query)) ||
-          item.dagNos.toLowerCase().includes(query);
-        if (!match) return false;
-      }
-      return true;
+    if (charCondition === 'RE_EMERGED' && !diluvionYear.trim()) {
+      setSearchError(
+        isBn
+          ? 'পুনরায় জেগে ওঠা চরের ক্ষেত্রে বিলীন হওয়ার আনুমানিক সন আবশ্যক।'
+          : 'Diluvion year is required for re-emerged land to evaluate limitation.'
+      );
+      return;
+    }
+
+    // Dynamic Matching against DEMO_CHAR_RECORDS
+    const matched = DEMO_CHAR_RECORDS.find((rec) => {
+      const matchDag = dagNumber ? rec.dagNumber.toLowerCase() === dagNumber.trim().toLowerCase() : false;
+      const matchKhatian = khatianNumber ? rec.khatianNumber.toLowerCase() === khatianNumber.trim().toLowerCase() : false;
+      const matchType = recordType ? rec.recordType === recordType : true;
+      const matchMouza = mouza ? rec.mouza.toLowerCase().includes(mouza.trim().toLowerCase()) : false;
+
+      if (matchDag && matchKhatian) return true;
+      if ((matchDag || matchKhatian) && (matchType || matchMouza)) return true;
+      return false;
     });
-  }, [division, district, upazila, mouza, charType, mapSearch]);
 
-  // Pagination calculation
-  const totalPages = Math.max(1, Math.ceil(filteredData.length / ITEMS_PER_PAGE));
-  const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredData.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredData, currentPage]);
+    if (matched) {
+      setVerificationResult(matched);
+      setSearchError(null);
+    } else {
+      // Dynamic Simulated Record Computation
+      if (charCondition === 'NEW_ACCRETION') {
+        setVerificationResult({
+          id: 'SIM-NEW-001',
+          division: division || 'Dhaka',
+          district: district || 'Faridpur',
+          upazila: upazila || (isBn ? 'সদর' : 'Sadar'),
+          mouza,
+          jlNumber: jlNumber || (isBn ? '০১' : '01'),
+          recordType: (recordType as any) || 'DIARA',
+          dagNumber,
+          khatianNumber: khatianNumber || '1',
+          riverName: riverName || (isBn ? 'পদ্মা' : 'Padma'),
+          charCondition: 'NEW_ACCRETION',
+          accretionYear: 2026,
+          totalAreaAcres: 2.5,
+          legalStatus: 'GOVT_KHAS_LANDLESS_ELIGIBLE',
+          eligibleScheme: isBn
+            ? 'কৃষি খাস জমি বন্দোবস্ত নীতিমালা ও গুচ্ছগ্রাম প্রকল্প'
+            : 'Agricultural Khas Land Settlement & Guchhogram Rehabilitation Scheme',
+          actionRecommendation: isBn
+            ? 'এটি নদীগর্ভ থেকে নতুন পয়স্তি হওয়া সরকারি খাস জমি। সিএস/এসএ/আরএস-এ কোনো ব্যক্তিগত সাবেক রেকর্ড নেই। স্থানীয় ভূমিহীন পরিবারদের মাঝে ৯৯ বছরের বন্দোবস্তযোগ্য।'
+            : 'This is newly formed alluvial khas land vesting directly in the government. No private historical record exists. Eligible for 99-year agricultural settlement to landless families.',
+          requiredDocuments: isBn
+            ? [
+                'স্থানীয় ভূমিহীন প্রত্যয়ন পত্র (ইউপি চেয়ারম্যান কর্তৃক)',
+                'জাতীয় পরিচয়পত্র ও পরিবারের সদস্য তালিকা',
+                'কৃষি কার্ড অথবা ভূমিহীন আবেদন ফরম',
+              ]
+            : [
+                'Landless Certificate from UP Chairman',
+                'National ID Cards & Family Member Roster',
+                'Farmer ID Card or Settlement Application Form',
+              ],
+        });
+      } else {
+        const diluvion = parseInt(diluvionYear, 10) || 2012;
+        const currentYear = 2026;
+        const submerged = currentYear - diluvion;
+        const isRestorable = submerged <= 30;
 
-  const handleDivisionChange = (val: string) => {
-    setDivision(val);
-    setDistrict('সব');
-    setUpazila('সব');
-    setMouza('সব');
-    setCurrentPage(1);
-  };
-
-  const handleDistrictChange = (val: string) => {
-    setDistrict(val);
-    setUpazila('সব');
-    setMouza('সব');
-    setCurrentPage(1);
-  };
-
-  const handleUpazilaChange = (val: string) => {
-    setUpazila(val);
-    setMouza('সব');
-    setCurrentPage(1);
-  };
-
-  const handleResetFilters = () => {
-    setDivision('সব');
-    setDistrict('সব');
-    setUpazila('সব');
-    setMouza('সব');
-    setCharType('সব');
-    setMapSearch('');
-    setCurrentPage(1);
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentPage(1);
-    if (filteredData.length > 0) {
-      setSelectedParcel(filteredData[0]);
-      setShowPopup(true);
+        setVerificationResult({
+          id: 'SIM-REM-002',
+          division: division || 'Chittagong',
+          district: district || 'Chandpur',
+          upazila: upazila || (isBn ? 'উপজেলা' : 'Upazila'),
+          mouza,
+          jlNumber: jlNumber || (isBn ? '১২' : '12'),
+          recordType: (recordType as any) || 'RS',
+          dagNumber,
+          khatianNumber,
+          riverName: riverName || (isBn ? 'মেঘনা' : 'Meghna'),
+          charCondition: 'RE_EMERGED',
+          diluvionYear: diluvion,
+          accretionYear: currentYear,
+          yearsSubmerged: submerged,
+          totalAreaAcres: 1.8,
+          legalStatus: isRestorable ? 'RESTORABLE_TO_OWNER' : 'BARRED_BY_LIMITATION',
+          eligibleScheme: isRestorable
+            ? (isBn ? 'মালিকানা পুনর্বহাল (SAT Act ধারা ৮৬)' : 'Ownership Restoration (SAT Act Section 86)')
+            : (isBn ? 'তামাদিজনিত সরকারি খাস জমি' : 'Barred by 30-Year Statutory Limitation'),
+          historicalOwners: [
+            {
+              ownerName: isBn ? 'সাবেক রেকর্ডীয় জোতদার' : 'Historical Record Holder',
+              fatherOrHusbandName: isBn ? 'মরহুম পূর্বপুরুষ' : 'Late Predecessor',
+              nidOrId: isBn ? 'পুরাতন রেকর্ড নথিভুক্ত' : 'Archived Record',
+              sharePercentage: isBn ? '১০০%' : '100%',
+              ownedAreaAcres: 1.8,
+              deedNo: isBn ? 'রেজিস্ট্রিকৃত বায়া দলিল' : 'Registered Title Deed',
+              deedYear: diluvion - 12,
+              subRegistryOffice: isBn ? 'স্থানীয় সাব-রেজিস্ট্রি অফিস' : 'Local Sub-Registry Office',
+              isAlive: false,
+              legalHeirsCount: 3,
+              heirNames: isBn
+                ? ['বৈধ ওয়ারিশ ১ (পুত্র)', 'বৈধ ওয়ারিশ ২ (কন্যা)', 'বৈধ ওয়ারিশ ৩ (স্ত্রী)']
+                : ['Legal Heir 1 (Son)', 'Legal Heir 2 (Daughter)', 'Legal Heir 3 (Spouse)'],
+            },
+          ],
+          actionRecommendation: isRestorable
+            ? isBn
+              ? `জমিটি নদীভাঙনের ${formatNumber(submerged, 'bn')} বছর পর পুনরায় জেগে উঠেছে (৩০ বছরের মধ্যে)। মূল মালিকের ওয়ারিশগণ আরএস রেকর্ড ও দলিল দেখিয়ে এসি ল্যান্ড অফিসে নামজারির আবেদন করতে পারবেন।`
+              : `The land re-emerged after ${submerged} years of submersion (within statutory 30-year limit). Legal heirs can file for mutation and boundary demarcation at AC Land office with CS/RS records & deeds.`
+            : isBn
+              ? `জমিটি নদীগর্ভে ${formatNumber(submerged, 'bn')} বছর বিলীন ছিল। ৩০ বছরের আইনি সময়সীমা অতিক্রান্ত হওয়ায় সাবেক মালিকের স্বত্ব বিলুপ্ত হয়ে জমিটি সরকারের ১নং খাস খতিয়ানে পরিণত হয়েছে।`
+              : `The land remained submerged for ${submerged} years. Having exceeded the 30-year limitation threshold under Section 86, former title is extinguished and property vests in the Government.`,
+          requiredDocuments: isRestorable
+            ? isBn
+              ? [
+                  'ইউনিয়ন পরিষদ কর্তৃক ইস্যুকৃত ওয়ারিশ কায়েম সনদ',
+                  'মূল খতিয়ান ও রেজিস্ট্রিকৃত দলিলের জাবেদা নকল',
+                  'ওয়ারিশদের এনআইডি ও হালনাগাদ খাজনা দাখিলা',
+                ]
+              : [
+                  'Succession Certificate (Warishan Sanad) from Local Union Parishad',
+                  'Certified Copy of CS/SA/RS Khatians and Registered Title Deed',
+                  'National ID Cards of Legal Heirs & Up-to-date Land Tax Receipt (Dakhila)',
+                ]
+            : isBn
+              ? [
+                  'সহকারী কমিশনার (ভূমি) কর্তৃক তামাদি প্রতিবেদন',
+                  'দিয়ারা জরিপ নকশা ও ১নং খাস খতিয়ান কপি',
+                ]
+              : [
+                  'AC Land Limitation & Vesting Verification Report',
+                  'Diara Cadastral Map & Government Khas Khatian 1 Transcript',
+                ],
+        });
+      }
     }
-  };
 
-  const handleParcelClick = (record: KhasCharRecord) => {
-    setSelectedParcel(record);
-    setShowPopup(true);
-  };
+    setHasSearched(true);
+    setActiveTab('verdict');
 
-  // Export to Excel / CSV
-  const handleDownloadExcel = () => {
-    const headers = [
-      'ক্রমিক নং',
-      'আইডি / ল্যান্ড আইডি',
-      'মৌজা',
-      'উপজেলা',
-      'জেলা',
-      'বিভাগ',
-      'আয়তন (শতক/একর)',
-      'জমির অবস্থা',
-      'জমির শ্রেণি/ধরন',
-      'জে.এল. নম্বর',
-      'খতিয়ান নম্বর',
-      'দাগ নম্বর',
-      'দিয়ারা জরিপ ও বছর',
-      'গেজেট বিজ্ঞপ্তি',
-      'নদী',
-    ];
-
-    const rows = filteredData.map((item) => [
-      item.slBn,
-      item.landId || 'কাস্টম চর ডেমো',
-      item.mouza,
-      item.upazila,
-      item.district,
-      item.division,
-      item.areaDec,
-      item.status,
-      item.charType,
-      item.jlNo,
-      item.khatianNo,
-      item.dagNos,
-      item.diaraYear,
-      item.gazetteNo,
-      item.riverName,
-    ]);
-
-    const csvContent =
-      '\uFEFF' +
-      [headers.join(','), ...rows.map((row) => row.map((cell) => `"${cell}"`).join(','))].join('\r\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `khas-char-land-records.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Convert numbers to Bengali
-  const toBn = (num: number | string) => {
-    return num.toLocaleString('bn-BD');
+    setTimeout(() => {
+      resultRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 150);
   };
 
   return (
-    <div className="flex-1 bg-[#F4F7F5] text-slate-800 font-sans">
-      {/* 1. HERO SECTION */}
-      <section className="relative overflow-hidden bg-gradient-to-r from-[#FAFCFA] via-[#F4F8F5] to-[#E9F3EE] border-b border-slate-200/80">
-        {/* River aerial landscape background on the right */}
+    <div className="flex-1 bg-[#F4F7F5] text-slate-800 font-sans pb-24">
+      {/* ── 1. HERO SECTION ── */}
+      <section className="relative overflow-hidden min-h-[380px] sm:min-h-[440px] lg:min-h-[470px] flex items-start pt-10 sm:pt-14 pb-36 sm:pb-44 bg-slate-900 border-b border-emerald-950/20">
+        {/* Real Aerial Photography Background */}
         <div
-          className="absolute right-0 top-0 bottom-0 w-full md:w-[62%] lg:w-[56%] bg-cover bg-right bg-no-repeat pointer-events-none opacity-95 transition-all duration-700"
+          className="absolute inset-0 bg-cover bg-right md:bg-center bg-no-repeat pointer-events-none"
           style={{ backgroundImage: `url('/Khas-Char-Hero.png')` }}
-        >
-          {/* Subtle gradient overlay to merge seamlessly with the left content */}
-          <div className="absolute inset-0 bg-gradient-to-r from-[#FAFCFA] via-[#FAFCFA]/60 sm:via-[#FAFCFA]/20 to-transparent" />
-        </div>
+        />
+        {/* Soft Dark Overlay with Subtle Left Green Tint */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/92 via-slate-900/80 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-emerald-950/20 pointer-events-none" />
 
-        <div className="relative z-10 mx-auto max-w-[1520px] px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-          <div className="max-w-[700px]">
-            {/* Top Badge */}
-            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 border border-emerald-200 px-3 py-1 text-xs font-bold text-emerald-800 shadow-sm mb-2">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
-              <span>নদী সিকস্তি, পয়স্তি ও সরকারি খাস জমি ব্যবস্থাপনা</span>
+        <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 w-full">
+          <div className="max-w-3xl">
+            {/* Pill Tag */}
+            <div className="inline-flex items-center gap-2 rounded-full bg-emerald-500/15 border border-emerald-400/30 px-3.5 py-1.5 text-xs font-semibold text-emerald-300 backdrop-blur-md mb-4 shadow-sm">
+              <ShieldCheck className="h-4 w-4 text-emerald-400" />
+              <span>
+                {isBn
+                  ? 'ভূমি রেকর্ড ও নদী জরিপ মূল্যায়ন প্ল্যাটফর্ম'
+                  : 'Land Records & River Survey Assessment Platform'}
+              </span>
             </div>
 
-            {/* Main Title */}
-            <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-[#004D36]">
-              খাস চর ও নদীগর্ভস্থ ভূমি
+            {/* Title */}
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-[1.25] drop-shadow-sm">
+              {isBn
+                ? 'চর ও খাস জমি যাচাই এবং ঐতিহাসিক মালিকানা পুনরুদ্ধার পোর্টাল'
+                : 'Char & Khas Land Verification & Historical Ownership Restoration Portal'}
             </h1>
 
             {/* Subtitle */}
-            <p className="mt-2 text-lg sm:text-[21px] font-bold text-slate-800 leading-snug">
-              নদী ও চরাঞ্চলের ২৫টি সংযুক্ত মাস্টার খাস রেকর্ড অনুসন্ধান ও যাচাই
+            <p className="mt-3.5 text-sm sm:text-base font-normal text-slate-200/90 leading-relaxed max-w-2xl drop-shadow-sm">
+              {isBn
+                ? 'নদীগর্ভে বিলীন হওয়া জমির ৩০ বছরের আইনি স্বত্ব (ধারা ৮৬) ও নতুন পয়স্তি খাস জমির বন্দোবস্ত যাচাইকরণ'
+                : 'Verifying 30-year legal rights of diluviated land (Section 86) & settlement of new alluvial khas land'}
             </p>
 
-            {/* Description */}
-            <p className="mt-2 text-xs sm:text-[13.5px] leading-relaxed text-slate-600">
-              নদীভাঙন, চর গঠন এবং রাষ্ট্রীয় অধিগ্রহণ ও প্রজাস্বত্ব আইন, ১৯৫০ এর ধারা ৮৬ ও ৮৭ অনুযায়ী সরকারি খাস খতিয়ানভুক্ত ও নদী সিকস্তি-পয়স্তি ভূমির বিস্তারিত মানচিত্র ও আইনি যাচাই রিপোর্ট দেখুন।
-            </p>
+            {/* Quick Feature Badges */}
+            <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-slate-200">
+              <span className="flex items-center gap-1.5 bg-slate-900/60 border border-white/10 px-3 py-1.5 rounded-lg backdrop-blur">
+                <Clock className="h-3.5 w-3.5 text-blue-400" />
+                {isBn ? '৩০ বছরের সময়সীমা ট্র্যাকার' : '30-Year Limitation Tracker'}
+              </span>
+              <span className="flex items-center gap-1.5 bg-slate-900/60 border border-white/10 px-3 py-1.5 rounded-lg backdrop-blur">
+                <Users className="h-3.5 w-3.5 text-emerald-400" />
+                {isBn ? 'সাবেক মালিক ও ওয়ারিশ তথ্য' : 'Historical Owner & Heir Details'}
+              </span>
+              <span className="flex items-center gap-1.5 bg-slate-900/60 border border-white/10 px-3 py-1.5 rounded-lg backdrop-blur">
+                <Scale className="h-3.5 w-3.5 text-amber-400" />
+                {isBn ? 'SAT Act ১৯৫০ ধারা ৮৬ ও ৮৭' : 'SAT Act 1950 Sections 86 & 87'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-            {/* Search Filter Card */}
-            <div className="mt-6 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.08)] sm:p-6">
-              <form onSubmit={handleSearchSubmit}>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                  {/* বিভাগ */}
+      {/* ── 2. SEARCH & VERIFICATION FORM (EXACT MATCH TO ATTACHED IMAGE) ── */}
+      <section className="relative z-20 mx-auto max-w-7xl px-4 -mt-24 sm:-mt-32 lg:-mt-36 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-[0_12px_40px_-10px_rgba(0,0,0,0.12)] overflow-hidden">
+          {/* Card Top Header */}
+          <div className="flex flex-wrap items-center justify-between border-b border-slate-100 bg-white px-5 sm:px-7 py-4 gap-4">
+            <div className="flex items-center gap-3.5">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#006A4E] text-white shadow-sm">
+                <Search className="h-5 w-5" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
+                  {isBn ? 'চর জমি অনুসন্ধান ও যাচাই ফর্ম' : 'Char Land Search & Verification Form'}
+                </h2>
+                <p className="text-xs text-slate-500 font-medium">
+                  {isBn
+                    ? 'প্রাসঙ্গিক তথ্য দিন এবং নথি-ভিত্তিক যাচাই শুরু করুন'
+                    : 'Provide relevant details to start document-based verification'}
+                </p>
+              </div>
+            </div>
+
+            {/* Top Right Action Buttons */}
+            <div className="flex items-center gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowLegal(true)}
+                className="flex items-center gap-1.5 text-xs font-semibold text-emerald-800 bg-[#E8F5E9] hover:bg-[#C8E6C9] border border-emerald-200 px-3.5 py-2 rounded-xl transition shadow-2xs"
+              >
+                <BookOpen className="h-4 w-4 text-[#006A4E]" />
+                <span>{isBn ? 'ব্যবহারের নির্দেশিকা' : 'User Guidelines'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleReset}
+                className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 bg-slate-50 hover:bg-slate-100 border border-slate-200 px-3.5 py-2 rounded-xl transition shadow-2xs"
+                title={isBn ? 'ফর্ম রিসেট করুন' : 'Reset Form'}
+              >
+                <RotateCcw className="h-4 w-4 text-slate-500" />
+                <span>{isBn ? 'রিসেট' : 'Reset'}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Form Body: Left Stepper + Right Form Grid */}
+          <form onSubmit={handleVerify}>
+            <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-100">
+              {/* LEFT COLUMN: Vertical Progress Stepper (Col-span 3) */}
+              <div className="lg:col-span-3 p-5 sm:p-6 bg-slate-50/40">
+                <div className="relative space-y-5">
+                  <div className="absolute left-[13px] top-4 bottom-4 w-0.5 bg-slate-200 z-0 pointer-events-none" />
+
+                  {[
+                    { id: 1, icon: BookOpen, title: isBn ? 'জমির পরিচিতি' : 'Land Identity', desc: isBn ? 'মৌজা, দাগ, জেলা ইত্যাদি' : 'Mouza, Plot, District' },
+                    { id: 2, icon: FileText, title: isBn ? 'রেকর্ডের ধরন' : 'Record Type', desc: 'CS, SA, RS, BS, DIARA' },
+                    { id: 3, icon: Waves, title: isBn ? 'নদী ও ভৌগোলিক তথ্য' : 'River & Geography', desc: isBn ? 'নদীর নাম, অবস্থান, বিলীন বছর' : 'River, Location, Diluvion' },
+                    { id: 4, icon: Users, title: isBn ? 'মালিকানা ও ব্যবহার' : 'Ownership & Tenure', desc: isBn ? 'সাবেক মালিক, বর্তমান অবস্থা' : 'Past Owner, Present State' },
+                    { id: 5, icon: ListChecks, title: isBn ? 'যাচাই ও ফলাফল' : 'Verify & Results', desc: isBn ? 'রিপোর্ট দেখুন' : 'View Assessment Report' },
+                  ].map((step) => {
+                    const isActive = step.id === 1;
+                    const IconComp = step.icon;
+                    return (
+                      <div
+                        key={step.id}
+                        className={cn(
+                          'relative z-10 flex items-start gap-3 p-1.5 rounded-xl transition',
+                          isActive ? 'bg-white shadow-2xs' : 'opacity-85'
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'h-7 w-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ring-4 ring-slate-50',
+                            isActive
+                              ? 'bg-[#006A4E] text-white shadow-xs'
+                              : 'bg-slate-200 text-slate-600 font-semibold'
+                          )}
+                        >
+                          {formatNumber(step.id, lang)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className={cn('text-xs font-bold flex items-center gap-1.5', isActive ? 'text-[#006A4E]' : 'text-slate-700')}>
+                            <IconComp className={cn('h-3.5 w-3.5 flex-shrink-0', isActive ? 'text-[#006A4E]' : 'text-slate-500')} />
+                            <span className="truncate">{step.title}</span>
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-normal leading-tight mt-0.5">
+                            {step.desc}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Helpful note on bottom of sidebar */}
+                <div className="pt-6 mt-6 border-t border-slate-200/60">
+                  <div className="p-3 bg-white rounded-xl border border-slate-200/80 text-[11px] text-slate-600 space-y-1 shadow-2xs">
+                    <p className="font-bold text-slate-800 flex items-center gap-1.5">
+                      <HelpCircle className="h-3.5 w-3.5 text-[#006A4E]" />
+                      {isBn ? 'সহায়তা ও তথ্য' : 'Guidance & Help'}
+                    </p>
+                    <p className="text-slate-500 leading-relaxed">
+                      {isBn
+                        ? 'দাগ বা খতিয়ান জানা না থাকলে ডানদিকের "ডেমো দৃশ্যপট" ড্রপডাউন থেকে উদাহরণ লোড করতে পারেন।'
+                        : 'If plot or khatian details are unknown, pick a ready scenario from the "Choose Demo Scenario" dropdown.'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN: Form Fields (Col-span 9) */}
+              <div className="lg:col-span-9 p-5 sm:p-7 space-y-5">
+                {/* Information Notice Alert Box */}
+                <div className="p-3.5 rounded-xl border border-emerald-100 bg-[#E8F5E9]/60 flex items-start gap-3">
+                  <div className="h-7 w-7 rounded-lg bg-emerald-100/90 flex items-center justify-center flex-shrink-0 text-emerald-800 mt-0.5">
+                    <Shield className="h-4 w-4" />
+                  </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold text-slate-700">বিভাগ</label>
+                    <h4 className="text-xs font-bold text-emerald-950">
+                      {isBn
+                        ? 'আপনি যে জমির তথ্য দিতে চান তা সঠিকভাবে পূরণ করুন'
+                        : 'Accurately fill in the land details to inspect legal tenure'}
+                    </h4>
+                    <p className="text-[11px] text-emerald-800/90 leading-relaxed mt-0.5">
+                      {isBn
+                        ? 'আংশিক তথ্য দিলেও প্রাথমিক রেকর্ড দেখা যাবে এবং পরে বিস্তারিতভাবে যাচাই করা যাবে।'
+                        : 'Preliminary records will be displayed even with partial data, followed by comprehensive legal review.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Section Header 1 */}
+                <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                  <MapPin className="h-4 w-4 text-[#006A4E]" />
+                  <span>
+                    {isBn ? '১. জমির মৌলিক অবস্থান (Basic Land Location)' : '1. Basic Land Location'}
+                  </span>
+                </div>
+
+                {/* ROW 1: 4-Column Location Selectors (বিভাগ, জেলা, উপজেলা, মৌজা) */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'বিভাগ (Division)' : 'Division'} <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
                       <select
                         value={division}
-                        onChange={(e) => handleDivisionChange(e.target.value)}
-                        className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]"
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setDivision(val);
+                          const avail = DISTRICTS_MAP[val] || [];
+                          setDistrict(avail[0] || '');
+                        }}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl py-2.5 pl-3 pr-8 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 text-slate-800 appearance-none shadow-2xs"
                       >
-                        <option value="সব">সকল বিভাগ ({toBn(25)})</option>
-                        <option value="ঢাকা">ঢাকা বিভাগ</option>
-                        <option value="রাজশাহী">রাজশাহী বিভাগ</option>
-                        <option value="চট্টগ্রাম">চট্টগ্রাম বিভাগ</option>
-                        <option value="খুলনা">খুলনা বিভাগ</option>
-                        <option value="বরিশাল">বরিশাল বিভাগ</option>
-                        <option value="ময়মনসিংহ">ময়মনসিংহ বিভাগ</option>
-                        <option value="রংপুর">রংপুর বিভাগ</option>
+                        <option value="">{isBn ? '-- বিভাগ বেছে নিন --' : '-- Select Division --'}</option>
+                        {DIVISIONS.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
                       </select>
-                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      <ChevronDown className="absolute right-2.5 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
                     </div>
                   </div>
 
-                  {/* জেলা */}
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold text-slate-700">জেলা</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'জেলা (District)' : 'District'} <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
-                      <select
+                      <input
+                        type="text"
                         value={district}
-                        onChange={(e) => handleDistrictChange(e.target.value)}
-                        className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]"
-                      >
-                        <option value="সব">সকল জেলা ({toBn(availableDistricts.length)})</option>
-                        {availableDistricts.map((d) => (
-                          <option key={d} value={d}>
-                            {d}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        onChange={(e) => setDistrict(e.target.value)}
+                        placeholder={isBn ? 'যেমন: Faridpur' : 'e.g., Faridpur'}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl py-2.5 px-3 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 text-slate-800 shadow-2xs"
+                      />
                     </div>
                   </div>
 
-                  {/* উপজেলা */}
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold text-slate-700">উপজেলা</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'উপজেলা (Upazila)' : 'Upazila'} <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
-                      <select
+                      <input
+                        type="text"
                         value={upazila}
-                        onChange={(e) => handleUpazilaChange(e.target.value)}
-                        className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]"
-                      >
-                        <option value="সব">সকল উপজেলা ({toBn(availableUpazilas.length)})</option>
-                        {availableUpazilas.map((u) => (
-                          <option key={u} value={u}>
-                            {u}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        onChange={(e) => setUpazila(e.target.value)}
+                        placeholder={isBn ? 'যেমন: Lohajang' : 'e.g., Lohajang'}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl py-2.5 px-3 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 text-slate-800 shadow-2xs"
+                      />
                     </div>
                   </div>
 
-                  {/* মৌজা */}
                   <div>
-                    <label className="mb-1 block text-[11px] font-bold text-slate-700">মৌজা</label>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'মৌজা (Mouza)' : 'Mouza'} <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
-                      <select
+                      <input
+                        type="text"
                         value={mouza}
-                        onChange={(e) => {
-                          setMouza(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]"
-                      >
-                        <option value="সব">সকল মৌজা ({toBn(availableMouzas.length)})</option>
-                        {availableMouzas.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                        onChange={(e) => setMouza(e.target.value)}
+                        placeholder={isBn ? 'যেমন: Eshanbala' : 'e.g., Eshanbala'}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl py-2.5 px-3 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 text-slate-800 shadow-2xs"
+                        required
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 2: Record Type (Pills: INITIAL BLANK) + Khatian No + Dag No */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+                  {/* Record Type Pill Buttons */}
+                  <div className="md:col-span-4">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>{isBn ? 'রেকর্ডের ধরন (Record Type)' : 'Record Type'}</span>
+                      {!recordType && (
+                        <span className="text-[10px] text-slate-400 font-normal">
+                          {isBn ? '(অনির্বাচিত)' : '(Unselected)'}
+                        </span>
+                      )}
+                    </label>
+                    <div className="grid grid-cols-5 gap-1 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                      {RECORD_TYPES.map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setRecordType(recordType === t ? '' : t)}
+                          className={cn(
+                            'py-1.5 text-xs font-bold rounded-lg transition text-center cursor-pointer',
+                            recordType === t
+                              ? 'bg-[#006A4E] text-white shadow-xs'
+                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+                          )}
+                        >
+                          {t}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
-                  {/* জমির অবস্থা / ধরন */}
-                  <div>
-                    <label className="mb-1 block text-[11px] font-bold text-slate-700">জমির ধরন</label>
+                  {/* Khatian No */}
+                  <div className="md:col-span-4">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'খতিয়ান নম্বর (Khatian Number)' : 'Khatian Number'} <span className="text-red-500">*</span>
+                    </label>
                     <div className="relative">
-                      <select
-                        value={charType}
-                        onChange={(e) => {
-                          setCharType(e.target.value);
-                          setCurrentPage(1);
-                        }}
-                        className="w-full appearance-none rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-800 outline-none transition focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]"
-                      >
-                        <option value="সব">সকল খাস/চর ধরন</option>
-                        <option value="খাস চর">খাস চর</option>
-                        <option value="কৃষি খাস">কৃষি খাস</option>
-                        <option value="বন্দোবস্ত">বন্দোবস্তকৃত খাস</option>
-                        <option value="বিরোধপূর্ণ">বিরোধপূর্ণ চর/খাস</option>
-                        <option value="জলমহাল">সংরক্ষিত জলমহাল</option>
-                        <option value="পয়স্তি">পয়স্তি ভূমি</option>
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+                      <FileText className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={khatianNumber}
+                        onChange={(e) => setKhatianNumber(e.target.value)}
+                        placeholder={isBn ? 'যেমন: ৮৯, ২০১, ১' : 'e.g., 89, 201, 1'}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-3 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 text-slate-800 shadow-2xs"
+                      />
                     </div>
                   </div>
 
-                  {/* অ্যাকশন বাটনসমূহ */}
-                  <div className="flex items-end gap-2">
-                    <button
-                      type="submit"
-                      className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#006A4E] px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-[#00543E] active:scale-[0.99]"
-                    >
-                      <Search className="h-3.5 w-3.5" />
-                      <span>ফিল্টার করুন</span>
-                    </button>
-                    {(division !== 'সব' || district !== 'সব' || upazila !== 'সব' || mouza !== 'সব' || charType !== 'সব' || mapSearch) && (
-                      <button
-                        type="button"
-                        onClick={handleResetFilters}
-                        title="ফিল্টার রিসেট করুন"
-                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-slate-50 text-slate-600 transition hover:bg-slate-100"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </button>
+                  {/* Dag No */}
+                  <div className="md:col-span-4">
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'দাগ নম্বর (Dag / Plot Number)' : 'Dag / Plot Number'} <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <Hash className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={dagNumber}
+                        onChange={(e) => setDagNumber(e.target.value)}
+                        placeholder={isBn ? 'যেমন: ৫১২, ৭৮১, ১৪০২' : 'e.g., 512, 781, 1402'}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-3 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 text-slate-800 shadow-2xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* ROW 3: River Name + Dynamic Diluvion Year + JL Number */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'নদীর নাম (River Name)' : 'River Name'}
+                    </label>
+                    <div className="relative">
+                      <Waves className="absolute left-3 top-2.5 h-4 w-4 text-cyan-600" />
+                      <input
+                        type="text"
+                        value={riverName}
+                        onChange={(e) => setRiverName(e.target.value)}
+                        placeholder={isBn ? 'যেমন: পদ্মা, মেঘনা' : 'e.g., Padma, Meghna'}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-3 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 text-slate-800 shadow-2xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Diluvion Year: Behavior switches dynamically based on Char Condition */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'বিলীন হওয়ার আনুমানিক সাল (Diluvion Year)' : 'Estimated Diluvion Year'}{' '}
+                      {charCondition === 'RE_EMERGED' && <span className="text-red-500">*</span>}
+                    </label>
+                    <div className="relative">
+                      <Clock className={cn('absolute left-3 top-2.5 h-4 w-4', charCondition === 'NEW_ACCRETION' ? 'text-emerald-600' : 'text-slate-400')} />
+                      <input
+                        type="text"
+                        disabled={charCondition === 'NEW_ACCRETION'}
+                        value={
+                          charCondition === 'NEW_ACCRETION'
+                            ? (isBn ? 'প্রযোজ্য নয় (সম্পূর্ণ নতুন পয়স্তি জমি)' : 'Not Applicable (Fresh Accretion Land)')
+                            : diluvionYear
+                        }
+                        onChange={(e) => {
+                          if (charCondition !== 'NEW_ACCRETION') {
+                            setDiluvionYear(e.target.value);
+                          }
+                        }}
+                        placeholder={isBn ? 'যেমন: ২০১২' : 'e.g., 2012'}
+                        className={cn(
+                          'w-full text-xs font-medium border rounded-xl py-2.5 pl-9 pr-3 outline-none shadow-2xs transition',
+                          charCondition === 'NEW_ACCRETION'
+                            ? 'bg-emerald-50/70 border-emerald-200 text-emerald-800 font-bold cursor-not-allowed select-none'
+                            : 'bg-white border-slate-200 text-slate-800 focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20'
+                        )}
+                      />
+                    </div>
+                    {charCondition === 'RE_EMERGED' && (
+                      <p className="text-[10px] text-blue-700 mt-1">
+                        {isBn
+                          ? '* ৩০ বছরের আইনি সীমা গণনায় এই সন প্রয়োজন।'
+                          : '* Required to calculate 30-year limitation period.'}
+                      </p>
+                    )}
+                    {charCondition === 'NEW_ACCRETION' && (
+                      <p className="text-[10px] text-emerald-700 mt-1">
+                        {isBn
+                          ? 'নতুন চরের ক্ষেত্রে সাবেক কোনো বিলীন সন নেই, এটি সরাসরি সরকারি খাস জমি।'
+                          : 'Fresh accretion char has no prior diluvion year; it directly vests as government khas land.'}
+                      </p>
                     )}
                   </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* 2. STATS OVERVIEW CARDS (4 CARDS) */}
-      <section className="mx-auto max-w-[1520px] px-4 pt-6 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Card 1: মোট রেকর্ড */}
-          <div className="flex items-center gap-4 rounded-2xl border border-emerald-100 bg-[#EEF9F2] p-4 shadow-sm">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#DCF5E6] text-[#0A7545]">
-              <Tractor className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-600">মোট সংযুক্ত রেকর্ড</p>
-              <div className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black tracking-tight text-slate-900">
-                  {toBn(KHAS_CHAR_DATA.length)}
-                </span>
-                <span className="text-xs font-medium text-slate-500">টি মাস্টার রেকর্ড</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: মোট অন্তর্ভুক্ত মৌজা */}
-          <div className="flex items-center gap-4 rounded-2xl border border-blue-100 bg-[#EFF6FF] p-4 shadow-sm">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#DBEAFE] text-[#1D4ED8]">
-              <MapPin className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-600">অন্তর্ভুক্ত মৌজা</p>
-              <div className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black tracking-tight text-slate-900">
-                  {toBn(new Set(KHAS_CHAR_DATA.map((d) => d.mouza)).size)}
-                </span>
-                <span className="text-xs font-medium text-slate-500">টি মৌজা</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: মোট জেলা ও উপজেলা */}
-          <div className="flex items-center gap-4 rounded-2xl border border-amber-100 bg-[#FEF9EE] p-4 shadow-sm">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#FEF3C7] text-[#D97706]">
-              <Building2 className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-600">উপজেলা কভারেজ</p>
-              <div className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black tracking-tight text-slate-900">
-                  {toBn(new Set(KHAS_CHAR_DATA.map((d) => d.upazila)).size)}
-                </span>
-                <span className="text-xs font-medium text-slate-500">টি উপজেলা ({toBn(new Set(KHAS_CHAR_DATA.map((d) => d.district)).size)} জেলা)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: নদী ও জলমহাল */}
-          <div className="flex items-center gap-4 rounded-2xl border border-purple-100 bg-[#FAF5FF] p-4 shadow-sm">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#EDE9FE] text-[#7C3AED]">
-              <FileText className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-600">নদী ও মোহনা এলাকা</p>
-              <div className="mt-0.5 flex items-baseline gap-1.5">
-                <span className="text-2xl font-black tracking-tight text-slate-900">
-                  {toBn(new Set(KHAS_CHAR_DATA.map((d) => d.riverName)).size)}
-                </span>
-                <span className="text-xs font-medium text-slate-500">টি প্রধান নদীগর্ভ</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. MAIN DASHBOARD CONTENT: MAP (LEFT) & TABLE (RIGHT) */}
-      <section className="mx-auto max-w-[1520px] px-4 py-6 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 items-stretch">
-          
-          {/* LEFT: মানচিত্রে খাস চর জমির অবস্থান */}
-          <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-            {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
-              <div className="flex items-center gap-2">
-                <MapIcon className="h-5 w-5 text-[#006A4E]" />
-                <h2 className="text-[15px] font-bold text-slate-900">
-                  মানচিত্রে খাস চর ও ভূমির অবস্থান ({toBn(filteredData.length)})
-                </h2>
-              </div>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={mapSearch}
-                  onChange={(e) => {
-                    setMapSearch(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                  placeholder="মৌজা, দাগ, নদী বা জেলা খুঁজুন..."
-                  className="h-8 w-48 sm:w-60 rounded-md border border-slate-200 bg-white pl-2.5 pr-7 text-xs text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-[#006A4E]"
-                />
-                <Search className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
-              </div>
-            </div>
-
-            {/* Map Area */}
-            <div className="relative h-[320px] sm:h-[400px] w-full overflow-hidden bg-[#1a3832]">
-              {/* Satellite Background using Chor&River image */}
-              <div
-                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 ease-out"
-                style={{
-                  backgroundImage: `url('/Chor%26River.png')`,
-                  transform: `scale(${zoomLevel})`,
-                }}
-              />
-
-              {/* Map Zoom & Layer Controls (Top Left) */}
-              <div className="absolute left-3 top-3 z-20 flex flex-col gap-2">
-                <div className="flex flex-col rounded-lg border border-slate-200/70 bg-white/95 shadow-md backdrop-blur">
-                  <button
-                    type="button"
-                    onClick={() => setZoomLevel((prev) => Math.min(prev + 0.25, 2.0))}
-                    aria-label="মানচিত্র জুম ইন করুন"
-                    className="flex h-7 w-7 items-center justify-center text-slate-700 transition hover:bg-slate-100 hover:text-emerald-700 border-b border-slate-100"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setZoomLevel((prev) => Math.max(prev - 0.25, 1.0))}
-                    aria-label="মানচিত্র জুম আউট করুন"
-                    className="flex h-7 w-7 items-center justify-center text-slate-700 transition hover:bg-slate-100 hover:text-emerald-700"
-                  >
-                    <Minus className="h-3.5 w-3.5" />
-                  </button>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                      {isBn ? 'মৌজার জেএল নম্বর (JL No)' : 'Mouza JL Number'}
+                    </label>
+                    <div className="relative">
+                      <FileText className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <input
+                        type="text"
+                        value={jlNumber}
+                        onChange={(e) => setJlNumber(e.target.value)}
+                        placeholder={isBn ? 'যেমন: ১২, JL-42' : 'e.g., 12, JL-42'}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 rounded-xl py-2.5 pl-9 pr-3 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 text-slate-800 shadow-2xs"
+                      />
+                    </div>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setMapLayer((prev) => (prev === 'satellite' ? 'terrain' : 'satellite'))}
-                  aria-label="মানচিত্রের লেয়ার পরিবর্তন করুন"
-                  title={mapLayer === 'satellite' ? 'স্যাটেলাইট দৃশ্য' : 'ভূসংস্থান দৃশ্য'}
-                  className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200/70 bg-white/95 text-slate-700 shadow-md backdrop-blur transition hover:bg-slate-100 hover:text-emerald-700"
-                >
-                  <Layers className="h-3.5 w-3.5" />
-                </button>
-              </div>
+                {/* Section Header 2 */}
+                <div className="pt-2 flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                  <Layers className="h-4 w-4 text-[#006A4E]" />
+                  <span>
+                    {isBn
+                      ? '২. জমির বর্তমান অবস্থা (Current Land Condition)'
+                      : '2. Current Land Condition'}{' '}
+                    <span className="text-red-500">*</span>
+                  </span>
+                </div>
 
-              {/* SVG Interactive Overlay Polygons on Char parcels 1-5 */}
-              <svg
-                className="absolute inset-0 h-full w-full pointer-events-none"
-                viewBox="0 0 1672 941"
-                preserveAspectRatio="none"
-              >
-                {/* Parcel 1 - Chandpur */}
-                <polygon
-                  points="850,300 950,270 1150,380 1200,490 1020,490 920,400"
-                  className={`pointer-events-auto cursor-pointer transition-all duration-300 ${
-                    selectedParcel?.id === 1
-                      ? 'fill-emerald-500/40 stroke-[#76FF03] stroke-[4]'
-                      : 'fill-emerald-600/20 stroke-[#76FF03]/80 stroke-[2.5] hover:fill-emerald-500/40 hover:stroke-[#76FF03]'
-                  }`}
-                  onClick={() => handleParcelClick(KHAS_CHAR_DATA[0])}
-                />
-
-                {/* Parcel 2 - Majhir Char */}
-                <polygon
-                  points="980,510 1120,490 1210,630 1120,700 970,580"
-                  className={`pointer-events-auto cursor-pointer transition-all duration-300 ${
-                    selectedParcel?.id === 2
-                      ? 'fill-emerald-500/40 stroke-[#76FF03] stroke-[4]'
-                      : 'fill-emerald-600/20 stroke-[#76FF03]/80 stroke-[2.5] hover:fill-emerald-500/40 hover:stroke-[#76FF03]'
-                  }`}
-                  onClick={() => handleParcelClick(KHAS_CHAR_DATA[1])}
-                />
-
-                {/* Parcel 3 - Char Kamaria */}
-                <polygon
-                  points="180,180 320,130 420,240 330,350 200,260"
-                  className={`pointer-events-auto cursor-pointer transition-all duration-300 ${
-                    selectedParcel?.id === 3
-                      ? 'fill-emerald-500/40 stroke-[#76FF03] stroke-[4]'
-                      : 'fill-emerald-600/20 stroke-[#76FF03]/80 stroke-[2.5] hover:fill-emerald-500/40 hover:stroke-[#76FF03]'
-                  }`}
-                  onClick={() => handleParcelClick(KHAS_CHAR_DATA[2])}
-                />
-
-                {/* Parcel 4 - New Char */}
-                <polygon
-                  points="620,110 770,80 870,160 760,220 630,170"
-                  className={`pointer-events-auto cursor-pointer transition-all duration-300 ${
-                    selectedParcel?.id === 4
-                      ? 'fill-emerald-500/40 stroke-[#76FF03] stroke-[4]'
-                      : 'fill-emerald-600/20 stroke-[#76FF03]/80 stroke-[2.5] hover:fill-emerald-500/40 hover:stroke-[#76FF03]'
-                  }`}
-                  onClick={() => handleParcelClick(KHAS_CHAR_DATA[3])}
-                />
-
-                {/* Parcel 5 - Charbehat */}
-                <polygon
-                  points="1230,480 1440,600 1400,680 1220,620"
-                  className={`pointer-events-auto cursor-pointer transition-all duration-300 ${
-                    selectedParcel?.id === 5
-                      ? 'fill-emerald-500/40 stroke-[#76FF03] stroke-[4]'
-                      : 'fill-emerald-600/20 stroke-[#76FF03]/80 stroke-[2.5] hover:fill-emerald-500/40 hover:stroke-[#76FF03]'
-                  }`}
-                  onClick={() => handleParcelClick(KHAS_CHAR_DATA[4])}
-                />
-              </svg>
-
-              {/* Pins for all filtered records on the satellite map */}
-              <div className="absolute inset-0 pointer-events-none">
-                {filteredData.map((item) => {
-                  const isSelected = selectedParcel?.id === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => handleParcelClick(item)}
-                      style={{
-                        left: `${item.coordinates.xPercent}%`,
-                        top: `${item.coordinates.yPercent}%`,
-                      }}
-                      className="pointer-events-auto absolute -translate-x-1/2 -translate-y-1/2 group transition-all duration-200 z-10"
-                      title={`${item.mouza} (${item.status})`}
-                    >
-                      <div
-                        className={`flex items-center justify-center rounded-full font-bold text-[10px] shadow-lg transition-transform ${
-                          isSelected
-                            ? 'h-7 w-7 bg-emerald-500 text-white ring-4 ring-emerald-300/80 scale-125 z-20'
-                            : 'h-5 w-5 bg-emerald-800 text-white hover:scale-125 hover:bg-emerald-600 ring-2 ring-white/80'
-                        }`}
-                      >
-                        {item.slBn}
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Floating Popup Card for Selected Parcel */}
-              {showPopup && selectedParcel && (
-                <div
-                  className="absolute z-30 transition-all duration-300 pointer-events-auto"
-                  style={{
-                    left: `${selectedParcel.coordinates.xPercent}%`,
-                    top: `${selectedParcel.coordinates.yPercent}%`,
-                    transform: 'translate(-50%, -108%)',
-                  }}
-                >
-                  <div className="relative rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-2xl backdrop-blur-md min-w-[210px] sm:min-w-[240px] text-xs">
-                    {/* Close button */}
+                {/* ROW 4: Radio Cards for Char Situation + Demo Scenario Selector */}
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5 items-end">
+                  {/* Radio Card 1: Re-emerged */}
+                  <div className="md:col-span-4">
                     <button
                       type="button"
-                      onClick={() => setShowPopup(false)}
-                      className="absolute right-2 top-2 rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      onClick={() => setCharCondition('RE_EMERGED')}
+                      className={cn(
+                        'w-full p-3 rounded-xl border text-left transition flex items-center gap-3 shadow-2xs cursor-pointer',
+                        charCondition === 'RE_EMERGED'
+                          ? 'border-emerald-500 bg-[#E8F5E9]/50 text-emerald-950 ring-1 ring-emerald-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                      )}
                     >
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-
-                    {/* Popup Details */}
-                    <div className="pr-4 space-y-1">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <span className="inline-flex rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
-                          {selectedParcel.status}
-                        </span>
-                        {selectedParcel.landId && (
-                          <span className="font-mono text-[10px] text-slate-500">
-                            {selectedParcel.landId}
-                          </span>
+                      <div className={cn(
+                        'h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                        charCondition === 'RE_EMERGED' ? 'border-[#006A4E]' : 'border-slate-300'
+                      )}>
+                        {charCondition === 'RE_EMERGED' && (
+                          <div className="h-2.5 w-2.5 rounded-full bg-[#006A4E]" />
                         )}
                       </div>
-                      <p className="font-extrabold text-slate-900 text-[13px]">
-                        মৌজা: {selectedParcel.mouza}
-                      </p>
-                      <p className="text-slate-700">
-                        নদী: <span className="font-semibold text-emerald-800">{selectedParcel.riverName}</span>
-                      </p>
-                      <p className="text-slate-700">
-                        আয়তন: <span className="font-semibold">{selectedParcel.areaDec} শতক/একর</span>
-                      </p>
-                      <p className="text-slate-700">
-                        উপজেলা: <span className="font-semibold">{selectedParcel.upazila}, {selectedParcel.district}</span>
-                      </p>
-                      <p className="text-[11px] text-slate-500 truncate max-w-[210px]">
-                        দাগ: {selectedParcel.dagNos}
-                      </p>
-                    </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate">
+                          {isBn ? 'পুরনো জেগে ওঠা চর (সিকস্তি)' : 'Re-emerged Land (Diluvion / Sikosti)'}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {isBn ? 'পূর্বে নদীগর্ভে বিলীন হওয়া জমি' : 'Land previously submerged under river'}
+                        </p>
+                      </div>
+                    </button>
+                  </div>
 
-                    {/* Action buttons inside popup */}
-                    <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => setModalRecord(selectedParcel)}
-                        className="text-[11px] font-bold text-[#006A4E] hover:underline"
-                      >
-                        বিস্তারিত দেখুন
-                      </button>
-                      {selectedParcel.landId && (
-                        <Link
-                          href={`/report/${selectedParcel.landId}`}
-                          className="inline-flex items-center gap-1 rounded bg-[#006A4E] px-2 py-1 text-[10px] font-bold text-white hover:bg-emerald-800 transition"
-                        >
-                          <span>যাচাই রিপোর্ট</span>
-                          <ExternalLink className="h-2.5 w-2.5" />
-                        </Link>
+                  {/* Radio Card 2: Fresh Accretion */}
+                  <div className="md:col-span-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCharCondition('NEW_ACCRETION');
+                        setDiluvionYear('');
+                      }}
+                      className={cn(
+                        'w-full p-3 rounded-xl border text-left transition flex items-center gap-3 shadow-2xs cursor-pointer',
+                        charCondition === 'NEW_ACCRETION'
+                          ? 'border-emerald-500 bg-[#E8F5E9]/50 text-emerald-950 ring-1 ring-emerald-500'
+                          : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
                       )}
-                    </div>
+                    >
+                      <div className={cn(
+                        'h-5 w-5 rounded-full border-2 flex items-center justify-center flex-shrink-0',
+                        charCondition === 'NEW_ACCRETION' ? 'border-[#006A4E]' : 'border-slate-300'
+                      )}>
+                        {charCondition === 'NEW_ACCRETION' && (
+                          <div className="h-2.5 w-2.5 rounded-full bg-[#006A4E]" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold truncate">
+                          {isBn ? 'নতুন পয়স্তি চর (Fresh Accretion)' : 'New Alluvial Land (Fresh Accretion)'}
+                        </p>
+                        <p className="text-[10px] text-slate-500 truncate">
+                          {isBn ? 'সম্প্রতি নতুন পলি জমার চর' : 'Newly formed silt deposit land'}
+                        </p>
+                      </div>
+                    </button>
+                  </div>
 
-                    {/* Pointer tail */}
-                    <div className="absolute left-1/2 -bottom-2 -translate-x-1/2 border-solid border-t-white border-t-8 border-x-transparent border-x-8 border-b-0 drop-shadow-sm" />
+                  {/* Demo Scenario Selector Box */}
+                  <div className="md:col-span-4">
+                    <label className="block text-xs font-bold text-slate-700 mb-1.5 flex items-center justify-between">
+                      <span>{isBn ? 'ডেমো দৃশ্যপট বাছাই করুন' : 'Choose Demo Scenario'}</span>
+                      <span className="text-[10px] text-amber-700 font-semibold bg-amber-50 border border-amber-200/60 px-1.5 py-0.5 rounded flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5 text-amber-500" />
+                        {isBn ? '১০টি কেস' : '10 Cases'}
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <FileSpreadsheet className="absolute left-3 top-2.5 h-4 w-4 text-slate-400 pointer-events-none" />
+                      <select
+                        value={selectedDemoId}
+                        onChange={(e) => handleDemoSelect(e.target.value)}
+                        className="w-full text-xs font-medium bg-white border border-slate-200 text-slate-700 rounded-xl py-2.5 pl-9 pr-8 outline-none focus:border-[#006A4E] focus:ring-1 focus:ring-[#006A4E]/20 cursor-pointer appearance-none shadow-2xs"
+                      >
+                        <option value="">{isBn ? '-- ডেমো রেকর্ড নির্বাচন করুন --' : '-- Select Demo Record --'}</option>
+                        {DEMO_CHAR_RECORDS.map((rec, i) => (
+                          <option key={rec.id} value={rec.id}>
+                            {isBn
+                              ? `কেস ${formatNumber(i + 1, 'bn')}: ${rec.mouza} (দাগ: ${formatNumber(rec.dagNumber, 'bn')}, খতিয়ান: ${formatNumber(rec.khatianNumber, 'bn')})`
+                              : `Case ${i + 1}: ${rec.mouza} (Plot: ${rec.dagNumber}, Khatian: ${rec.khatianNumber})`}
+                          </option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-2.5 top-3 h-4 w-4 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Submit Row: Button aligned to the right */}
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-2 bg-[#006A4E] hover:bg-[#00543E] text-white py-3 px-7 rounded-xl font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition cursor-pointer"
+                  >
+                    <Search className="h-4 w-4" />
+                    <span>{isBn ? 'যাচাই ও অনুসন্ধান (Verify & Search) →' : 'Verify & Search →'}</span>
+                  </button>
+                </div>
+
+                {/* Error Banner */}
+                {searchError && (
+                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 font-medium">
+                    <AlertTriangle className="h-4 w-4 text-red-500 flex-shrink-0" />
+                    <span>{searchError}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      {/* ── 3. RESULTS DISPLAY SECTION (SHOWN ONLY AFTER SEARCH OR DEMO VERIFICATION) ── */}
+      <section ref={resultRef} className="mx-auto max-w-7xl px-4 mt-8 sm:px-6 lg:px-8">
+        {hasSearched && verificationResult ? (
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden animate-in fade-in duration-300">
+            {/* Status Header Banner according to 3 Scenarios */}
+            {verificationResult.legalStatus === 'RESTORABLE_TO_OWNER' && (
+              <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 p-6 text-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-white text-blue-800 shadow-sm">
+                    <ShieldCheck className="h-4 w-4 text-blue-600" />
+                    {isBn
+                      ? 'মালিকানা পুনরুদ্ধারের সুযোগ (Restorable to Owner / Heirs)'
+                      : 'Ownership Restorable (Within 30-Year Limitation)'}
+                  </span>
+                  <span className="text-xs bg-white/20 border border-white/30 px-3 py-1 rounded-md font-mono">
+                    {isBn ? 'SAT Act ধারা ৮৬' : 'SAT Act Section 86'}
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold">
+                  {isBn
+                    ? `${verificationResult.mouza} মৌজা — দাগ নং ${formatNumber(verificationResult.dagNumber, 'bn')} (খতিয়ান ${formatNumber(verificationResult.khatianNumber, 'bn')})`
+                    : `${verificationResult.mouza} Mouza — Plot No ${verificationResult.dagNumber} (Khatian ${verificationResult.khatianNumber})`}
+                </h3>
+                <p className="text-xs text-blue-100 mt-1">
+                  {isBn
+                    ? `নদী: ${verificationResult.riverName} · জেএল নম্বর: ${formatNumber(verificationResult.jlNumber, 'bn')} · মোট পরিমাণ: ${formatNumber(verificationResult.totalAreaAcres, 'bn')} একর · জরিপ: ${verificationResult.recordType}`
+                    : `River: ${verificationResult.riverName} · JL No: ${verificationResult.jlNumber} · Total Area: ${verificationResult.totalAreaAcres} Acres · Survey: ${verificationResult.recordType}`}
+                </p>
+              </div>
+            )}
+
+            {verificationResult.legalStatus === 'GOVT_KHAS_LANDLESS_ELIGIBLE' && (
+              <div className="bg-gradient-to-r from-emerald-700 via-teal-700 to-emerald-800 p-6 text-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-white text-emerald-800 shadow-sm">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                    {isBn
+                      ? 'সরকারি ১নং খাস খতিয়ান (নতুন পয়স্তি জমি)'
+                      : 'Government Khas Khatian 1 (Fresh Accretion)'}
+                  </span>
+                  <span className="text-xs bg-white/20 border border-white/30 px-3 py-1 rounded-md font-mono">
+                    {isBn ? 'SAT Act ধারা ৮৭' : 'SAT Act Section 87'}
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold">
+                  {isBn
+                    ? `${verificationResult.mouza} মৌজা — দাগ নং ${formatNumber(verificationResult.dagNumber, 'bn')} (খতিয়ান ${formatNumber(verificationResult.khatianNumber, 'bn')})`
+                    : `${verificationResult.mouza} Mouza — Plot No ${verificationResult.dagNumber} (Khatian ${verificationResult.khatianNumber})`}
+                </h3>
+                <p className="text-xs text-emerald-100 mt-1">
+                  {isBn
+                    ? `নদী: ${verificationResult.riverName} · জেএল নম্বর: ${formatNumber(verificationResult.jlNumber, 'bn')} · মোট পরিমাণ: ${formatNumber(verificationResult.totalAreaAcres, 'bn')} একর · জরিপ: ${verificationResult.recordType}`
+                    : `River: ${verificationResult.riverName} · JL No: ${verificationResult.jlNumber} · Total Area: ${verificationResult.totalAreaAcres} Acres · Survey: ${verificationResult.recordType}`}
+                </p>
+              </div>
+            )}
+
+            {verificationResult.legalStatus === 'BARRED_BY_LIMITATION' && (
+              <div className="bg-gradient-to-r from-amber-600 via-orange-600 to-amber-700 p-6 text-white">
+                <div className="flex flex-wrap items-center justify-between gap-3 mb-2">
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold bg-white text-amber-900 shadow-sm">
+                    <XCircle className="h-4 w-4 text-amber-600" />
+                    {isBn
+                      ? 'তামাদিজনিত সরকারি খাস জমি (Barred by Limitation)'
+                      : 'Vested Government Land (Barred by 30-Year Limitation)'}
+                  </span>
+                  <span className="text-xs bg-white/20 border border-white/30 px-3 py-1 rounded-md font-mono">
+                    {isBn ? 'SAT Act ধারা ৮৬ (তামাদি)' : 'SAT Act Section 86 (Barred)'}
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-bold">
+                  {isBn
+                    ? `${verificationResult.mouza} মৌজা — দাগ নং ${formatNumber(verificationResult.dagNumber, 'bn')} (খতিয়ান ${formatNumber(verificationResult.khatianNumber, 'bn')})`
+                    : `${verificationResult.mouza} Mouza — Plot No ${verificationResult.dagNumber} (Khatian ${verificationResult.khatianNumber})`}
+                </h3>
+                <p className="text-xs text-amber-100 mt-1">
+                  {isBn
+                    ? `নদী: ${verificationResult.riverName} · জেএল নম্বর: ${formatNumber(verificationResult.jlNumber, 'bn')} · মোট পরিমাণ: ${formatNumber(verificationResult.totalAreaAcres, 'bn')} একর · জরিপ: ${verificationResult.recordType}`
+                    : `River: ${verificationResult.riverName} · JL No: ${verificationResult.jlNumber} · Total Area: ${verificationResult.totalAreaAcres} Acres · Survey: ${verificationResult.recordType}`}
+                </p>
+              </div>
+            )}
+
+            {/* Notice & Calculation Widgets */}
+            <div className="p-6 border-b border-slate-100 space-y-4">
+              {/* Case A: 30-Year Calculation Box */}
+              {verificationResult.legalStatus === 'RESTORABLE_TO_OWNER' && verificationResult.diluvionYear && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <div className="flex items-center gap-2 text-xs font-bold text-blue-900 mb-2">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    <span>
+                      {isBn
+                        ? 'আইনি ৩০ বছরের নিমজ্জন সময়কাল হিসাব'
+                        : '30-Year Submersion Limitation Calculation'}
+                    </span>
+                  </div>
+                  <div className="bg-white p-3.5 rounded-lg border border-blue-200/80 text-xs text-slate-800 font-medium space-y-1.5">
+                    <p className="flex flex-wrap items-center gap-2">
+                      <span className="text-slate-500">{isBn ? 'বিলীন সন:' : 'Diluvion:'}</span>
+                      <strong className="text-blue-900 font-bold">
+                        {formatNumber(verificationResult.diluvionYear, lang)}
+                      </strong>
+                      <span className="text-blue-500 font-bold">➔</span>
+                      <span className="text-slate-500">{isBn ? 'জেগে ওঠার সন:' : 'Accretion:'}</span>
+                      <strong className="text-blue-900 font-bold">
+                        {formatNumber(verificationResult.accretionYear, lang)}
+                      </strong>
+                      <span className="text-blue-500 font-bold">➔</span>
+                      <span className="text-slate-500">{isBn ? 'নিমজ্জিত কাল:' : 'Submerged:'}</span>
+                      <strong className="text-blue-900 font-bold">
+                        {formatNumber(verificationResult.yearsSubmerged, lang)} {isBn ? 'বছর' : 'yrs'}
+                      </strong>
+                      <span className="text-slate-600">
+                        {isBn ? '(৩০ বছরের আইনি সীমার মধ্যে)' : '(Within 30-Year Statutory Limit)'}
+                      </span>
+                    </p>
+                    <p className="text-emerald-700 font-bold flex items-center gap-1.5 pt-1">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                      {isBn
+                        ? 'আইনি ৩০ বছরের মধ্যে হওয়ায় মূল মালিক বা তাঁর ওয়ারিশগণ আইনত জমিটির স্বত্ব ও দখল পুনরুদ্ধার করতে পারবেন।'
+                        : 'Re-emergence occurred within statutory 30 years. Legal title and possession are restorable to former owners or legitimate heirs.'}
+                    </p>
                   </div>
                 </div>
               )}
 
-              {/* Map Legend Overlay (Bottom Left) */}
-              <div className="absolute bottom-3 left-3 z-20 rounded-xl border border-slate-200/80 bg-white/95 p-2.5 shadow-lg backdrop-blur text-[11px] font-medium text-slate-800 space-y-1.5 min-w-[125px]">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#16A34A] ring-2 ring-[#76FF03]" />
-                  <span>খাস চর (১-৫ দাগ)</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-800 ring-2 ring-white" />
-                  <span>মাস্টার খাস পয়েন্ট ({toBn(20)})</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#2563EB]" />
-                  <span>নদী ও জলাশয়</span>
-                </div>
-              </div>
-            </div>
-          </div>
+              {/* Case B: New Char Notice */}
+              {verificationResult.legalStatus === 'GOVT_KHAS_LANDLESS_ELIGIBLE' && (
+                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-700 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-emerald-900">
+                        {isBn
+                          ? 'নদীভাঙনের কোনো পুরাতন ব্যক্তিগত রেকর্ড নেই। এটি সম্পূর্ণ সরকারি খাস জমি।'
+                          : 'No prior private ownership record found. This is strictly government property.'}
+                      </h4>
+                      <p className="text-xs text-emerald-800 mt-1 leading-relaxed">
+                        {isBn
+                          ? 'রাষ্ট্রীয় অধিগ্রহণ ও প্রজাস্বত্ব আইনের ৮৭ ধারা অনুসারে নদীগর্ভে নতুন গঠিত পলিচর সরাসরি সরকারের ১নং খাস খতিয়ানভুক্ত হয়। এই জমিতে কোনো ব্যক্তির পূর্বস্বত্ব দাবি প্রযোজ্য নয়।'
+                          : 'Under Section 87 of SAT Act 1950, newly formed silt accretion chars vest directly in Government Khas Khatian 1. Private historical claims are inadmissible.'}
+                      </p>
+                    </div>
+                  </div>
 
-          {/* RIGHT: খাস চর জমির তালিকা (TABLE) */}
-          <div className="flex flex-col justify-between overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm">
-            {/* Header */}
-            <div>
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-3.5">
-                <div className="flex items-center gap-2">
-                  <FileSpreadsheet className="h-5 w-5 text-[#006A4E]" />
-                  <h2 className="text-[15px] font-bold text-slate-900">
-                    খাস চর ও ভূমির তালিকা
-                  </h2>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                    {toBn(filteredData.length)} টি রেকর্ড
+                  <div className="bg-white p-3.5 rounded-lg border border-emerald-200/80 flex flex-wrap items-center justify-between gap-3">
+                    <div className="space-y-0.5">
+                      <p className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                        <Home className="h-4 w-4 text-emerald-600" />
+                        {isBn ? 'ভূমিহীন পুনর্বাসন ও বন্দোবস্ত নির্দেশিকা' : 'Landless Rehabilitation & Settlement Guidelines'}
+                      </p>
+                      <p className="text-xs text-slate-600">
+                        {isBn
+                          ? 'স্থানীয় প্রকৃত নদীভাঙা ও ভূমিহীন পরিবারসমূহ ৯৯ বছরের অ-হস্তান্তরযোগ্য কৃষি বন্দোবস্তের আবেদন করতে পারবেন।'
+                          : 'Eligible local river-eroded landless families can apply for 99-year non-transferable agricultural settlement.'}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('documents')}
+                      className="inline-flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold py-2 px-3.5 rounded-lg shadow-sm transition"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      <span>{isBn ? 'ভূমিহীন আবেদন ফরম ও চেকলিস্ট' : 'Landless Application Form & Checklist'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Case C: Barred by Limitation Notice */}
+              {verificationResult.legalStatus === 'BARRED_BY_LIMITATION' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-2.5">
+                  <div className="flex items-start gap-2.5">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="text-xs font-bold text-amber-900">
+                        {isBn
+                          ? '৩০ বছরের অধিক কাল নদীগর্ভে নিমজ্জিত থাকায় ধারা ৮৬ মতে সাবেক মালিকের স্বত্ব বিলুপ্ত হয়েছে।'
+                          : 'Ownership extinguished under Section 86 as land was submerged for over 30 years.'}
+                      </h4>
+                      <p className="text-xs text-amber-800 mt-1 leading-relaxed">
+                        {isBn
+                          ? `জমিটি নদীগর্ভে ${formatNumber(verificationResult.yearsSubmerged, 'bn')} বছর বিলীন ছিল। তামাদি আইন অনুসারে সাবেক মালিক বা তাঁদের উত্তরাধিকারীদের ব্যক্তিগত স্বত্ব বিলুপ্ত হয়ে জমিটি সরকারের ১নং খাস খতিয়ানভুক্ত সম্পত্তিতে পরিণত হয়েছে।`
+                          : `The land was submerged for ${verificationResult.yearsSubmerged} years. By statutory limitation, all former private ownership is extinguished and the property vests strictly in the Government.`}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Tabs Navigation */}
+            <div className="flex border-b border-slate-200 bg-slate-50/70 px-6">
+              <button
+                type="button"
+                onClick={() => setActiveTab('verdict')}
+                className={cn(
+                  'py-3.5 px-4 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer',
+                  activeTab === 'verdict'
+                    ? 'border-[#006A4E] text-[#006A4E] bg-white'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                )}
+              >
+                <Gavel className="h-3.5 w-3.5" />
+                <span>{isBn ? 'আইনি মূল্যায়ন ও সুপারিশমালা' : 'Legal Assessment & Next Steps'}</span>
+              </button>
+
+              {verificationResult.historicalOwners && verificationResult.historicalOwners.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('history')}
+                  className={cn(
+                    'py-3.5 px-4 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer',
+                    activeTab === 'history'
+                      ? 'border-[#006A4E] text-[#006A4E] bg-white'
+                      : 'border-transparent text-slate-600 hover:text-slate-900'
+                  )}
+                >
+                  <Users className="h-3.5 w-3.5" />
+                  <span>
+                    {isBn
+                      ? `ঐতিহাসিক সাবেক মালিকের তথ্য (${formatNumber(verificationResult.historicalOwners.length, 'bn')})`
+                      : `Historical Owner Profile (${verificationResult.historicalOwners.length})`}
                   </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleDownloadExcel}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#006A4E] bg-white px-3 py-1.5 text-xs font-bold text-[#006A4E] transition hover:bg-emerald-50 active:scale-95"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span>Excel ডাউনলোড</span>
                 </button>
-              </div>
+              )}
 
-              {/* Data Table */}
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead>
-                    <tr className="bg-[#F1F5F9] text-slate-700 font-bold border-b border-slate-200">
-                      <th className="px-3 py-2.5 text-center whitespace-nowrap">ক্রমিক নং</th>
-                      <th className="px-3 py-2.5 whitespace-nowrap">মৌজা ও নদী</th>
-                      <th className="px-3 py-2.5 whitespace-nowrap">উপজেলা ও জেলা</th>
-                      <th className="px-3 py-2.5 text-right whitespace-nowrap">আয়তন</th>
-                      <th className="px-3 py-2.5 text-center whitespace-nowrap">জমির অবস্থা</th>
-                      <th className="px-3 py-2.5 text-center whitespace-nowrap">অ্যাকশন</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 text-slate-800">
-                    {filteredData.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-12 text-center text-slate-500">
-                          <AlertCircle className="mx-auto h-8 w-8 text-slate-300 mb-2" />
-                          <p className="font-bold text-slate-700">কোনো খাস চর রেকর্ড পাওয়া যায়নি।</p>
-                          <p className="text-xs text-slate-400 mt-1">অনুসন্ধান বা ফিল্টার পরিবর্তন করে পুনরায় চেষ্টা করুন।</p>
-                          <button
-                            type="button"
-                            onClick={handleResetFilters}
-                            className="mt-3 inline-flex items-center gap-1 rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-800"
-                          >
-                            সকল রেকর্ড রিসেট করুন
-                          </button>
-                        </td>
-                      </tr>
-                    ) : (
-                      paginatedData.map((row) => {
-                        const isSelected = selectedParcel?.id === row.id;
-                        return (
-                          <tr
-                            key={row.id}
-                            className={`transition hover:bg-emerald-50/50 cursor-pointer ${
-                              isSelected ? 'bg-emerald-50/70 font-medium' : ''
-                            }`}
-                            onClick={() => handleParcelClick(row)}
-                          >
-                            <td className="px-3 py-2.5 text-center font-medium text-slate-600">
-                              {row.slBn}
-                            </td>
-                            <td className="px-3 py-2.5 whitespace-nowrap">
-                              <p className="font-bold text-slate-900">{row.mouza}</p>
-                              <p className="text-[11px] text-slate-500">{row.riverName}</p>
-                            </td>
-                            <td className="px-3 py-2.5 whitespace-nowrap">
-                              <p className="text-slate-800 font-medium">{row.upazila}</p>
-                              <p className="text-[11px] text-slate-500">{row.district}, {row.division}</p>
-                            </td>
-                            <td className="px-3 py-2.5 text-right font-mono font-semibold text-slate-800 whitespace-nowrap">
-                              {row.areaDec}
-                            </td>
-                            <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                              <span
-                                className={`inline-flex rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${
-                                  row.status.includes('বিরোধ')
-                                    ? 'bg-rose-100 text-rose-800'
-                                    : row.status.includes('জলমহাল')
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : row.status.includes('বন্দোবস্ত')
-                                    ? 'bg-purple-100 text-purple-800'
-                                    : 'bg-[#DCFCE7] text-[#166534]'
-                                }`}
-                              >
-                                {row.status}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5 text-center whitespace-nowrap">
-                              <div className="inline-flex items-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setModalRecord(row);
-                                  }}
-                                  className="inline-flex items-center gap-1 rounded-md border border-[#10B981] bg-white px-2 py-1 text-[11px] font-semibold text-[#059669] transition hover:bg-[#ECFDF5] active:scale-95"
-                                  title="বিস্তারিত রেকর্ড দেখুন"
-                                >
-                                  <Eye className="h-3 w-3" />
-                                  <span>দেখুন</span>
-                                </button>
-                                {row.landId && (
-                                  <Link
-                                    href={`/report/${row.landId}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="inline-flex items-center gap-0.5 rounded-md bg-[#006A4E] px-2 py-1 text-[11px] font-bold text-white transition hover:bg-[#00543E] active:scale-95"
-                                    title={`যাচাই রিপোর্ট (${row.landId})`}
-                                  >
-                                    <span>রিপোর্ট</span>
-                                    <ExternalLink className="h-2.5 w-2.5" />
-                                  </Link>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <button
+                type="button"
+                onClick={() => setActiveTab('documents')}
+                className={cn(
+                  'py-3.5 px-4 text-xs font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer',
+                  activeTab === 'documents'
+                    ? 'border-[#006A4E] text-[#006A4E] bg-white'
+                    : 'border-transparent text-slate-600 hover:text-slate-900'
+                )}
+              >
+                <ListChecks className="h-3.5 w-3.5" />
+                <span>
+                  {isBn
+                    ? `প্রয়োজনীয় নথিপত্রের তালিকা (${formatNumber(verificationResult.requiredDocuments.length, 'bn')})`
+                    : `Required Document Checklist (${verificationResult.requiredDocuments.length})`}
+                </span>
+              </button>
             </div>
 
-            {/* Pagination & Total Count Footer */}
-            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-xs text-slate-600">
-              {/* Pagination controls */}
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  disabled={currentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40"
-                  aria-label="পূর্ববর্তী পাতা"
-                >
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </button>
+            {/* Tab Contents */}
+            <div className="p-6">
+              {/* TAB 1: Verdict */}
+              {activeTab === 'verdict' && (
+                <div className="space-y-5">
+                  <div>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+                      {isBn ? 'করণীয় ও সুপারিশমালা' : 'Recommended Next Steps'}
+                    </h4>
+                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 leading-relaxed font-medium">
+                      {verificationResult.actionRecommendation}
+                    </div>
+                  </div>
 
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <button
-                    key={pageNum}
-                    type="button"
-                    onClick={() => setCurrentPage(pageNum)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-md text-xs font-bold ${
-                      currentPage === pageNum
-                        ? 'bg-[#006A4E] text-white shadow-sm'
-                        : 'border border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {toBn(pageNum)}
-                  </button>
-                ))}
+                  {verificationResult.legalStatus === 'RESTORABLE_TO_OWNER' && (
+                    <div className="border border-blue-100 bg-blue-50/40 rounded-xl p-4 space-y-2.5">
+                      <h4 className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+                        <ArrowRight className="h-4 w-4 text-blue-600" />
+                        {isBn
+                          ? 'নামজারি ও সীমানা নির্ধারণের আইনি ধাপসমূহ (Action Steps)'
+                          : 'Legal Steps for Mutation & Boundary Demarcation'}
+                      </h4>
+                      <ol className="list-decimal list-inside text-xs text-blue-800 space-y-1.5 pl-1">
+                        {isBn ? (
+                          <>
+                            <li>সহকারী কমিশনার (ভূমি) এর কার্যালয়ে "সিকস্তি-পয়স্তি স্বত্ব পুনর্বহাল" আবেদন দাখিল।</li>
+                            <li>ইউনিয়ন ভূমি সহকারী কর্মকর্তার সরেজমিন তদন্ত ও দিয়ারা জরিপ মিলকরণ।</li>
+                            <li>উপজেলা সার্ভেয়ার ও কানুনগো দ্বারা চর জমির ডিজিটাল সীমানা ডিমার্কেশন (Boundary Demarcation)।</li>
+                            <li>মালিকের বা ওয়ারিশদের অনুকূলে নামজারি (Mutation) খতিয়ান সৃজন ও ভূমি উন্নয়ন কর পরিশোধ।</li>
+                          </>
+                        ) : (
+                          <>
+                            <li>Submit "Restoration of Alluvion Rights" petition to Assistant Commissioner (Land).</li>
+                            <li>Field inspection & cadastral Diara survey verification by Union Land Officer.</li>
+                            <li>Digital plot boundary demarcation by Upazila Surveyor & Qanungo.</li>
+                            <li>Mutation record creation in favor of rightful heirs & clearance of land development tax.</li>
+                          </>
+                        )}
+                      </ol>
+                    </div>
+                  )}
 
-                <button
-                  type="button"
-                  disabled={currentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-slate-200 text-slate-500 hover:bg-slate-100 disabled:opacity-40"
-                  aria-label="পরবর্তী পাতা"
-                >
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <span className="block text-[10px] text-slate-400 font-semibold uppercase">
+                        {isBn ? 'প্রকল্প স্কিম' : 'Applicable Scheme'}
+                      </span>
+                      <span className="font-bold text-slate-800 mt-0.5 block">
+                        {verificationResult.eligibleScheme}
+                      </span>
+                    </div>
+                    <div className="p-3 bg-white rounded-lg border border-slate-200">
+                      <span className="block text-[10px] text-slate-400 font-semibold uppercase">
+                        {isBn ? 'জরিপ ও রেকর্ড' : 'Survey & Cadastral Record'}
+                      </span>
+                      <span className="font-bold text-slate-800 mt-0.5 block">
+                        {verificationResult.recordType} {isBn ? 'জরিপ অনুযায়ী অন্তর্ভুক্ত' : 'Survey Cadastre'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              {/* Total records badge */}
-              <div className="font-medium text-slate-600">
-                মোট <span className="font-bold text-slate-900">{toBn(filteredData.length)}</span> টি রেকর্ড (পাতা {toBn(currentPage)}/{toBn(totalPages)})
-              </div>
+              {/* TAB 2: Historical Ownership Profile Card */}
+              {activeTab === 'history' && verificationResult.historicalOwners && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between pb-1">
+                    <h4 className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                      <Users className="h-4 w-4 text-[#006A4E]" />
+                      {isBn ? 'ঐতিহাসিক সাবেক মালিকের তথ্য' : 'Historical Owner Profile'}
+                    </h4>
+                    <span className="text-[11px] bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">
+                      {isBn ? 'বালাম বহি ও রেজিস্ট্রি দলিল কপি' : 'Volume Registry & Title Deed'}
+                    </span>
+                  </div>
+
+                  {verificationResult.historicalOwners.map((owner, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-slate-50/70 border border-slate-200/90 rounded-xl p-5 space-y-3"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200">
+                        <div>
+                          <h5 className="text-sm font-bold text-slate-900">{owner.ownerName}</h5>
+                          <p className="text-xs text-slate-500">
+                            {isBn ? 'পিতা/স্বামীর নাম:' : 'Father/Husband Name:'} {owner.fatherOrHusbandName}
+                          </p>
+                        </div>
+                        <div>
+                          {owner.isAlive ? (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                              <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
+                              {isBn ? 'জীবিত' : 'Living'}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-slate-200 text-slate-700 border border-slate-300">
+                              <UserX className="h-3.5 w-3.5 text-slate-500" />
+                              {isBn ? 'প্রয়াত (মরহুম)' : 'Deceased'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                        <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                          <span className="block text-[10px] text-slate-400 font-semibold uppercase">
+                            {isBn ? 'জাতীয় পরিচয়পত্র / আইডি' : 'NID / ID'}
+                          </span>
+                          <span className="font-mono font-bold text-slate-800 mt-0.5 block">
+                            {formatNumber(owner.nidOrId, lang)}
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                          <span className="block text-[10px] text-slate-400 font-semibold uppercase">
+                            {isBn ? 'মালিকানার অংশ' : 'Ownership Share'}
+                          </span>
+                          <span className="font-bold text-[#006A4E] mt-0.5 block">
+                            {formatNumber(owner.sharePercentage, lang)} (
+                            {formatNumber(owner.ownedAreaAcres, lang)} {isBn ? 'একর' : 'Acres'})
+                          </span>
+                        </div>
+
+                        <div className="p-2.5 bg-white rounded-lg border border-slate-200">
+                          <span className="block text-[10px] text-slate-400 font-semibold uppercase">
+                            {isBn ? 'দলিল নম্বর ও সন' : 'Deed No & Year'}
+                          </span>
+                          <span className="font-bold text-slate-800 mt-0.5 block">
+                            {owner.deedNo
+                              ? `${isBn ? 'দলিল নং-' : 'Deed #'}${formatNumber(owner.deedNo, lang)} (${formatNumber(owner.deedYear, lang)})`
+                              : isBn
+                              ? 'রেকর্ডীয় জোত'
+                              : 'Cadastral Jot'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {owner.subRegistryOffice && (
+                        <div className="text-xs text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200">
+                          <span className="font-semibold text-slate-700">
+                            {isBn ? 'সাব-রেজিস্ট্রি অফিস:' : 'Sub-Registry Office:'}
+                          </span>{' '}
+                          {owner.subRegistryOffice}
+                        </div>
+                      )}
+
+                      {!owner.isAlive && owner.heirNames && owner.heirNames.length > 0 && (
+                        <div className="bg-indigo-50/70 border border-indigo-200 rounded-lg p-3.5 space-y-2">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900">
+                            <Users className="h-3.5 w-3.5 text-indigo-600" />
+                            <span>
+                              {isBn ? 'বৈধ ওয়ারিশদের তালিকা' : 'List of Legal Heirs'} (
+                              {formatNumber(owner.legalHeirsCount, lang)} {isBn ? 'জন' : 'Heirs'})
+                            </span>
+                          </div>
+                          <ul className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs text-indigo-800 pt-1">
+                            {owner.heirNames.map((heir, hIdx) => (
+                              <li key={hIdx} className="flex items-center gap-1.5 bg-white/80 px-2.5 py-1.5 rounded border border-indigo-100 font-medium">
+                                <span className="h-1.5 w-1.5 rounded-full bg-indigo-500" />
+                                <span>{heir}</span>
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="text-[11px] text-indigo-700 pt-1 leading-relaxed">
+                            {isBn
+                              ? '* ওয়ারিশ কায়েম সনদ ও মৃত্যু সনদ দাখিলের মাধ্যমে উত্তরাধিকারীগণ যৌথভাবে মালিকানা পুনঃদখল করতে পারবেন।'
+                              : '* By presenting Succession Certificate & Death Certificate, legal heirs can jointly claim mutation & possession.'}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* TAB 3: Required Documents */}
+              {activeTab === 'documents' && (
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
+                    {isBn ? 'প্রয়োজনীয় নথিপত্রের তালিকা' : 'Required Document Checklist'}
+                  </h4>
+                  <div className="space-y-2.5">
+                    {verificationResult.requiredDocuments.map((doc, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 font-medium"
+                      >
+                        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-[#006A4E] text-white text-[10px] font-bold mt-0.5">
+                          {formatNumber(idx + 1, lang)}
+                        </span>
+                        <span className="leading-relaxed">{doc}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-start gap-2.5 mt-4">
+                    <Check className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">
+                      {isBn
+                        ? 'উক্ত নথিপত্র প্রস্তুত করে সহকারী কমিশনার (ভূমি) অথবা উপজেলা নির্বাহী অফিসার (ইউএনও) বরাবর আবেদন করুন।'
+                        : 'Submit the application along with the above checklist to AC (Land) or Upazila Nirbahi Officer (UNO).'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-        </div>
+        ) : null}
       </section>
 
-      {/* 4. DETAIL RECORD MODAL (When clicking "দেখুন") */}
-      {modalRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex items-start justify-between border-b border-slate-100 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-                    <ShieldCheck className="h-3.5 w-3.5" /> {modalRecord.status}
-                  </span>
-                  {modalRecord.landId && (
-                    <span className="font-mono text-xs font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
-                      আইডি: {modalRecord.landId}
-                    </span>
-                  )}
-                </div>
-                <h3 className="mt-2 text-xl font-black text-slate-900">
-                  মৌজা: {modalRecord.mouza}
-                </h3>
-                <p className="text-xs text-slate-500">
-                  {modalRecord.upazila}, {modalRecord.district}, {modalRecord.division} বিভাগ
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setModalRecord(null)}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Modal Content */}
-            <div className="mt-4 space-y-4 text-xs">
-              <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3.5">
-                <div>
-                  <p className="text-slate-500">মোট আয়তন</p>
-                  <p className="font-bold text-slate-900 text-sm">{modalRecord.areaDec} শতক/একর</p>
-                </div>
-                <div>
-                  <p className="text-slate-500">জে.এল. নম্বর</p>
-                  <p className="font-bold text-slate-900 text-sm">{modalRecord.jlNo}</p>
-                </div>
-                <div>
-                  <p className="text-slate-500">খতিয়ান নম্বর</p>
-                  <p className="font-bold text-slate-900 text-sm">{modalRecord.khatianNo}</p>
-                </div>
-                <div>
-                  <p className="text-slate-500">দাগ নম্বরসমূহ</p>
-                  <p className="font-bold text-slate-900 text-sm">{modalRecord.dagNos}</p>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-emerald-100 bg-[#F0FDF4] p-3.5 space-y-2">
-                <div className="flex items-center gap-2 font-bold text-emerald-950">
-                  <Info className="h-4 w-4 text-emerald-700" />
-                  <h4>চর ও নদী সিকস্তি/পয়স্তি বিবরণ</h4>
-                </div>
-                <ul className="space-y-1.5 text-slate-700 pl-5 list-disc">
-                  <li><strong>নদীর নাম:</strong> {modalRecord.riverName}</li>
-                  <li><strong>জমির শ্রেণি ও প্রকার:</strong> {modalRecord.charType}</li>
-                  <li><strong>জরিপ স্থিতি:</strong> {modalRecord.diaraYear} অনুযায়ী সরকারি ১নং খাস বালামভুক্ত।</li>
-                  <li><strong>গেজেট রেফারেন্স:</strong> {modalRecord.gazetteNo}</li>
-                </ul>
-              </div>
-
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-3.5 flex items-start gap-2.5 text-amber-950">
-                <AlertCircle className="h-4 w-4 shrink-0 text-amber-700 mt-0.5" />
-                <p className="text-[11px] leading-relaxed">
-                  <strong>আইনি সতর্কতা:</strong> রাষ্ট্রীয় অধিগ্রহণ ও প্রজাস্বত্ব আইন, ১৯৫০ এর ধারা ৮৬ ও ৮৭ অনুযায়ী নদী সিকস্তি ও পয়েন্ট পয়স্তি ভূমি সরকারি খাস হিসেবে গণ্য হয়। সহকারী কমিশনার (ভূমি) এর অনুমোদন ব্যতীত খাস ও চর জমি বন্দোবস্ত বা নামজারি আইনত অবৈধ।
-                </p>
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-4">
-              <button
-                type="button"
-                onClick={() => setModalRecord(null)}
-                className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-              >
-                বন্ধ করুন
-              </button>
-
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedParcel(modalRecord);
-                    setShowPopup(true);
-                    setModalRecord(null);
-                  }}
-                  className="rounded-lg border border-emerald-600 bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100"
-                >
-                  মানচিত্রে দেখুন
-                </button>
-
-                {modalRecord.landId && (
-                  <Link
-                    href={`/report/${modalRecord.landId}`}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[#006A4E] px-4 py-2 text-xs font-bold text-white hover:bg-[#00543E] transition shadow-sm"
-                  >
-                    <span>পূর্ণাঙ্গ যাচাই রিপোর্ট</span>
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── 4. LEGAL DRAWER MODAL ── */}
+      {showLegal && <LegalDrawer onClose={() => setShowLegal(false)} lang={lang} />}
     </div>
   );
 }
