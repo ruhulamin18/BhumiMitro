@@ -413,32 +413,14 @@ export default function AdminDashboardPage() {
                         </span>
                       </td>
                       <td className="p-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1.5">
-                          <Link
-                            href={`/result/${r.record_id}`}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-teal-700 text-white font-semibold hover:bg-teal-800 transition-colors text-[11px]"
-                            title="যাচাই ফলাফল দেখুন"
-                          >
-                            <span>ফলাফল</span>
-                            <ExternalLink className="w-3 h-3" />
-                          </Link>
-
-                          <Link
-                            href={`/report/${r.record_id}`}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-[11px]"
-                            title="প্রতিবেদন দেখুন"
-                          >
-                            <FileText className="w-3 h-3 text-slate-600" />
-                          </Link>
-
-                          <Link
-                            href={`/history/${r.record_id}`}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-slate-300 bg-white hover:bg-slate-100 text-slate-700 text-[11px]"
-                            title="মালিকানা ধারাবাহিকতা"
-                          >
-                            <GitBranch className="w-3 h-3 text-slate-600" />
-                          </Link>
-                        </div>
+                        <Link
+                          href={`/report?category=verify&id=${encodeURIComponent(r.record_id)}`}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-700 text-white font-semibold hover:bg-emerald-800 transition-colors text-[11px]"
+                          title="অফিসিয়াল প্রত্যয়নপত্র দেখুন"
+                        >
+                          <span>প্রত্যয়নপত্র</span>
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
                       </td>
                     </tr>
                   );

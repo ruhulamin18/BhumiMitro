@@ -279,10 +279,10 @@ export default function OwnershipHistoryPage() {
                     <span>{isBn ? scenario.tagBn : scenario.tagEn}</span>
                   </span>
                   <Link
-                    href={`/result/${scenario.id}`}
+                    href="/report?category=verify&id=BM-VERIFY-01"
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
                   >
-                    <span>{isBn ? 'মূল্যায়ন সারাংশ' : 'Full Assessment'}</span>
+                    <span>{isBn ? 'মূল্যায়ন প্রত্যয়নপত্র' : 'Official Certificate'}</span>
                     <ArrowUpRight className="w-3.5 h-3.5" aria-hidden="true" />
                   </Link>
                 </div>

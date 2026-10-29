@@ -4,6 +4,7 @@ import './globals.css';
 import { LanguageProvider } from '@/components/LanguageContext';
 import { GovernmentHeader } from '@/components/GovernmentHeader';
 import { Footer } from '@/components/Footer';
+import { ScrollToTop } from '@/components/ScrollToTop';
 
 const notoSansBengali = Noto_Sans_Bengali({
   subsets: ['bengali'],
@@ -48,6 +49,7 @@ export default function RootLayout({
           <GovernmentHeader />
           <main className="flex-1 flex flex-col">{children}</main>
           <Footer />
+          <ScrollToTop />
         </LanguageProvider>
       </body>
     </html>

@@ -14,11 +14,11 @@ export function Navbar() {
   const navLinks = [
     { href: '/', label: t.nav.home },
     { href: '/verify', label: t.nav.verify },
+    { href: '/vested-property', label: lang === 'bn' ? 'অর্পিত সম্পত্তি' : 'Vested Property' },
     { href: '/char-land', label: lang === 'bn' ? 'খাস ও চর জমি' : 'Khas & Char Land' },
-    { href: '/history', label: t.nav.history },
-    { href: '/reports', label: t.nav.reports },
+    { href: '/multi-office', label: lang === 'bn' ? 'দপ্তর তথ্য' : 'Office Records' },
+    { href: '/report', label: t.nav.reports },
     { href: '/qr-verify', label: t.nav.qrVerify },
-    { href: '/admin', label: t.nav.admin },
   ];
 
   const isActive = (href: string) => {

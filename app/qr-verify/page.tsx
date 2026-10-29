@@ -35,14 +35,14 @@ function QrVerificationContent() {
   const searchParams = useSearchParams();
   const codeFromUrl = searchParams.get('code') || '';
   const requestedReturnTo = searchParams.get('returnTo') || '';
-  const returnTo = requestedReturnTo.startsWith('/result/') && !requestedReturnTo.startsWith('//')
+  const returnTo = requestedReturnTo.startsWith('/report') && !requestedReturnTo.startsWith('//')
     ? requestedReturnTo
-    : '/verify';
+    : '/report';
 
   // Tab State: 'standard' | 'attack_mode'
   const [activeTab, setActiveTab] = useState<'standard' | 'attack_mode'>('standard');
 
-  const [inputCode, setInputCode] = useState(codeFromUrl || 'BM-DEMO-000001');
+  const [inputCode, setInputCode] = useState(codeFromUrl || 'BM-VERIFY-01');
   const [qrImage, setQrImage] = useState('');
   const [qrError, setQrError] = useState('');
   const [loading, setLoading] = useState(false);

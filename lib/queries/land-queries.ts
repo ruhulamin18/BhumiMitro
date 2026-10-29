@@ -1,10 +1,12 @@
 import { LandRecord, DemoStatus, LandClass } from '@/types/land';
-import { lands } from '@/lib/mock-data/lands';
+import { LAND_VERIFY_DEMO_CASES } from '@/lib/mock-data/land-verify-demo';
+import { VESTED_PROPERTY_RECORDS } from '@/lib/mock-data/vested-property-data';
+import { DEMO_CHAR_RECORDS } from '@/lib/mock-data/char-assessment-data';
 
-// Helper to normalize IDs (e.g., 'BM-DEMO-000001' -> 'BM-DEMO-001')
+// Helper to normalize IDs (e.g., 'BM-DEMO-000001' -> 'BM-DEMO-001' or 'bm-verify-01' -> 'BM-VERIFY-01')
 export function normalizeLandId(rawId: string): string {
+  if (!rawId) return '';
   const clean = rawId.trim().toUpperCase();
-  // If user passed BM-DEMO-000001, map to BM-DEMO-001
   const match = clean.match(/^BM-DEMO-0*(\d+)$/);
   if (match) {
     const num = parseInt(match[1], 10);
@@ -14,14 +16,56 @@ export function normalizeLandId(rawId: string): string {
 }
 
 export function getAllLands(): LandRecord[] {
-  return [...lands];
+  const verifyRecords: LandRecord[] = LAND_VERIFY_DEMO_CASES.map((c) => ({
+    id: c.id,
+    district: c.districtEn || c.districtBn,
+    upazila: c.upazilaEn || c.upazilaBn,
+    mouza: c.mouzaEn || c.mouzaBn,
+    khatianNo: String(c.khatianNumber),
+    dagNo: String(c.dagNumber),
+    areaDecimal: c.totalDagAreaDecimals || 20,
+    landClass: 'agricultural' as unknown as LandClass,
+    currentOwnerId: c.currentClaimantBn || 'মালিক',
+    verificationStatus: (c.riskScore < 25 ? 'consistent' : 'conflicting') as DemoStatus,
+    demo: true,
+  }));
+
+  const vestedRecords: LandRecord[] = VESTED_PROPERTY_RECORDS.map((v) => ({
+    id: v.id,
+    district: v.districtEn || v.districtBn,
+    upazila: v.upazilaEn || v.upazilaBn,
+    mouza: v.mouzaEn || v.mouzaBn,
+    khatianNo: String(v.khatianNumber),
+    dagNo: String(v.dagNumber),
+    areaDecimal: v.areaDecimals || 15,
+    landClass: 'commercial' as unknown as LandClass,
+    currentOwnerId: v.originalOwnerBn,
+    verificationStatus: 'conflicting' as DemoStatus,
+    demo: true,
+  }));
+
+  const charRecords: LandRecord[] = DEMO_CHAR_RECORDS.map((k) => ({
+    id: k.id,
+    district: k.district,
+    upazila: k.upazila,
+    mouza: k.mouza,
+    khatianNo: String(k.khatianNumber),
+    dagNo: String(k.dagNumber),
+    areaDecimal: (k.totalAreaAcres || 1) * 100,
+    landClass: 'char-demo' as unknown as LandClass,
+    currentOwnerId: k.historicalOwners?.[0]?.ownerName || 'জেলা প্রশাসন (সরকার)',
+    verificationStatus: (k.legalStatus === 'RESTORABLE_TO_OWNER' ? 'consistent' : 'conflicting') as DemoStatus,
+    demo: true,
+  }));
+
+  return [...verifyRecords, ...vestedRecords, ...charRecords];
 }
 
 export function getLandById(id: string): LandRecord | null {
   if (!id) return null;
   const normalized = normalizeLandId(id);
-  const found = lands.find((l) => l.id === normalized);
-  return found || null;
+  const all = getAllLands();
+  return all.find((l) => l.id.toUpperCase() === normalized) || null;
 }
 
 export interface LandFilterParams {
@@ -36,7 +80,7 @@ export interface LandFilterParams {
 }
 
 export function searchLands(filters: LandFilterParams): LandRecord[] {
-  return lands.filter((land) => {
+  return getAllLands().filter((land) => {
     if (filters.district && filters.district !== 'all') {
       if (land.district.toLowerCase() !== filters.district.toLowerCase()) return false;
     }
@@ -47,44 +91,11 @@ export function searchLands(filters: LandFilterParams): LandRecord[] {
       if (!land.mouza.toLowerCase().includes(filters.mouza.trim().toLowerCase())) return false;
     }
     if (filters.khatianNo && filters.khatianNo.trim()) {
-      const q = filters.khatianNo.trim().toLowerCase();
-      if (!land.khatianNo.toLowerCase().includes(q)) return false;
+      if (!land.khatianNo.toLowerCase().includes(filters.khatianNo.trim().toLowerCase())) return false;
     }
     if (filters.dagNo && filters.dagNo.trim()) {
-      const q = filters.dagNo.trim().toLowerCase();
-      if (!land.dagNo.toLowerCase().includes(q)) return false;
-    }
-    if (filters.landClass && filters.landClass !== 'all') {
-      if (land.landClass !== filters.landClass) return false;
-    }
-    if (filters.status && filters.status !== 'all') {
-      if (land.verificationStatus !== filters.status) return false;
-    }
-    if (filters.query && filters.query.trim()) {
-      const q = filters.query.trim().toLowerCase();
-      const matchId = land.id.toLowerCase().includes(q);
-      const matchMouza = land.mouza.toLowerCase().includes(q);
-      const matchKhatian = land.khatianNo.toLowerCase().includes(q);
-      const matchDag = land.dagNo.toLowerCase().includes(q);
-      const matchUpazila = land.upazila.toLowerCase().includes(q);
-      const matchDistrict = land.district.toLowerCase().includes(q);
-      if (!matchId && !matchMouza && !matchKhatian && !matchDag && !matchUpazila && !matchDistrict) {
-        return false;
-      }
+      if (!land.dagNo.toLowerCase().includes(filters.dagNo.trim().toLowerCase())) return false;
     }
     return true;
   });
-}
-
-export function getLandSummaryCounts() {
-  const all = getAllLands();
-  return {
-    total: all.length,
-    consistent: all.filter((l) => l.verificationStatus === 'consistent').length,
-    needsReview: all.filter((l) => l.verificationStatus === 'needs-review').length,
-    incomplete: all.filter((l) => l.verificationStatus === 'incomplete').length,
-    conflicting: all.filter((l) => l.verificationStatus === 'conflicting').length,
-    khasCount: all.filter((l) => l.landClass === 'khas-demo').length,
-    charCount: all.filter((l) => l.landClass === 'char-demo').length,
-  };
 }

@@ -112,7 +112,7 @@ const serviceLinks = [
     icon: Search,
   },
   {
-    href: '/reports',
+    href: '/report',
     titleBn: 'ঝুঁকি পর্যালোচনা',
     titleEn: 'Review findings',
     textBn: 'ডেমো রেকর্ডে পাওয়া সামঞ্জস্য পর্যবেক্ষণ দেখুন।',
@@ -215,7 +215,7 @@ export default function HomePage() {
   const { lang } = useLanguage();
   const router = useRouter();
 
-  const openCase = (id: string) => router.push(`/result/${id}`);
+  const openCase = (id: string) => router.push(`/report?category=verify&id=${id}`);
 
   return (
     <div className="flex-1 bg-[#f5f8f6] text-slate-800">
@@ -522,7 +522,7 @@ export default function HomePage() {
                   ? 'নমুনা রেকর্ডের পর্যবেক্ষণ, অনুপস্থিত তথ্য ও সাধারণ পরবর্তী পদক্ষেপ একসাথে দেখুন।'
                   : 'See sample findings, missing information, and general next steps in one place.'}
               </p>
-              <Link href="/reports" className="mt-4 inline-flex items-center gap-2 rounded-md bg-emerald-800 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-900">
+              <Link href="/report" className="mt-4 inline-flex items-center gap-2 rounded-md bg-emerald-800 px-4 py-2 text-xs font-bold text-white transition hover:bg-emerald-900">
                 {lang === 'bn' ? 'রিপোর্ট দেখুন' : 'Open reports'} <ArrowRight className="h-3.5 w-3.5" />
               </Link>
             </div>
@@ -532,3 +532,5 @@ export default function HomePage() {
     </div>
   );
 }
+
+

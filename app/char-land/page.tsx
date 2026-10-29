@@ -275,9 +275,19 @@ export default function CharLandVerificationPage() {
     setSearchError(null);
   };
 
+  // Form validation check for button disable state
+  const isFormValid = Boolean(
+    district.trim() &&
+    upazila.trim() &&
+    mouza.trim() &&
+    (khatianNumber.trim() || dagNumber.trim()) &&
+    charCondition
+  );
+
   // 4. Verify & Search Action
   const handleVerify = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    if (!isFormValid) return;
 
     if (!mouza.trim()) {
       setSearchError(
@@ -977,10 +987,15 @@ export default function CharLandVerificationPage() {
                 <div className="pt-2 flex justify-end">
                   <button
                     type="submit"
-                    className="w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-2 bg-[#006A4E] hover:bg-[#00543E] text-white py-3 px-7 rounded-xl font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition cursor-pointer"
+                    disabled={!isFormValid}
+                    className={`w-full sm:w-auto min-w-[240px] flex items-center justify-center gap-2 py-3 px-7 rounded-xl font-bold text-xs sm:text-sm transition ${
+                      !isFormValid
+                        ? 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+                        : 'bg-[#006A4E] hover:bg-[#00543E] text-white shadow-md hover:shadow-lg cursor-pointer'
+                    }`}
                   >
                     <Search className="h-4 w-4" />
-                    <span>{isBn ? 'যাচাই ও অনুসন্ধান (Verify & Search) →' : 'Verify & Search →'}</span>
+                    <span>{isBn ? 'তথ্য যাচাই করুন' : 'Verify & Search'}</span>
                   </button>
                 </div>
 
